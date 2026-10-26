@@ -1,0 +1,182 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #007f74;
+  --primary-dark: #00645f;
+  --primary-light: #16b8aa;
+  --navy: #0f172a;
+  --ink-secondary: #475569;
+  --ink-muted: #94a3b8;
+  --surface-subtle: #f8fafc;
+  --surface-cyan: #eaf8f8;
+  --border-line: #e2e8f0;
+  --success: #10b981;
+}
+
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 80px;
+}
+
+body {
+  font-family: var(--font-inter), system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  background: #ffffff;
+  color: var(--navy);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+/* Custom scrollbar — minimal teal accent */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Selection */
+::selection {
+  background: rgba(0, 127, 116, 0.18);
+  color: var(--primary-dark);
+}
+
+/* Accessible focus outline */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@layer components {
+  .container-x {
+    @apply mx-auto w-full max-w-container px-5 sm:px-6 lg:px-8;
+  }
+
+  .surface-cyan-grad {
+    background: linear-gradient(135deg, #ffffff 0%, #f0fbfa 55%, #e5f5f8 100%);
+  }
+
+  .teal-grad-text {
+    background: linear-gradient(135deg, #007f74 0%, #16b8aa 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .eyebrow {
+    @apply inline-flex items-center gap-2 rounded-full border border-primary-100 bg-primary-50/70 px-3.5 py-1.5 text-xs font-semibold tracking-wider text-primary-dark;
+  }
+
+  .eyebrow-dot {
+    @apply h-1.5 w-1.5 rounded-full bg-primary;
+  }
+
+  .h-section {
+    @apply font-bold text-navy;
+    font-size: clamp(1.8rem, 2.6vw, 2.5rem);
+    line-height: 1.12;
+    letter-spacing: -0.02em;
+  }
+
+  .h-hero {
+    font-size: clamp(2.3rem, 4.1vw, 3.65rem);
+    line-height: 1.08;
+    letter-spacing: -0.025em;
+    @apply font-bold text-navy;
+  }
+
+  .p-lead {
+    @apply text-ink-secondary;
+    font-size: clamp(1rem, 1.05vw, 1.125rem);
+    line-height: 1.65;
+  }
+
+  .card-base {
+    @apply rounded-2xl bg-white shadow-soft;
+  }
+
+  .grid-pattern {
+    background-image: radial-gradient(rgba(15, 118, 110, 0.12) 1px, transparent 1px);
+    background-size: 18px 18px;
+  }
+
+  .dot-pattern {
+    background-image: radial-gradient(rgba(15, 118, 110, 0.18) 1px, transparent 1px);
+    background-size: 14px 14px;
+  }
+}
+
+/* Route transition — the destination page fades in with a subtle upward
+   slide (~8px). `backwards` fill means the transform is removed once the
+   animation finishes, so position:fixed elements keep working. Runs on first
+   paint (CSS only) and is effectively instant under prefers-reduced-motion
+   via the global media query below. */
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.page-enter {
+  animation: pageEnter 0.22s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+/* Per-element content reveal is no longer needed — the route-level
+   `.page-enter` handles the entrance now (avoids a double animation). */
+.login-reveal {
+  animation: none;
+}
+
+/* The signup form has more fields than login. Keep the desktop card fixed to
+   the viewport without clipping the final actions on shorter screens. */
+@media (min-width: 1280px) and (max-height: 850px) {
+  .signup-content {
+    zoom: 0.9;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Custom utility: soft teal blob backgrounds */
+.bg-decor-blob {
+  background: radial-gradient(
+    closest-side,
+    rgba(22, 184, 170, 0.22),
+    rgba(22, 184, 170, 0) 70%
+  );
+}
+
+/* helpers */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
