@@ -76,3 +76,49 @@ Ref: roles.id < role_permissions.role_id [delete: cascade]
 Ref: permissions.id < role_permissions.permission_id [delete: cascade]
 Ref: users.id < sessions.user_id [delete: cascade]
 Ref: users.id < users.created_by [delete: set null]
+
+// ---------------------------------------------------------------------------
+// Phase 2 — Patient & Doctor Profiles (migration 003)
+// ---------------------------------------------------------------------------
+
+Table patient_profiles {
+  user_id uuid [pk, note: 'One profile per user. The PK/FK prevents duplicates but does not guarantee the user holds the patient role; membership is enforced in the service layer.']
+  date_of_birth date [note: 'Optional. Completed after login via My Profile; never collected at public sign-up.']
+  phone varchar(32) [note: 'Optional. Normalised to E.164 by the API before storage.']
+  gender varchar(20) [note: 'Optional. female | male | non_binary | prefer_not_to_say.']
+  profile_completed_at timestamptz [note: 'Set by the API when the required profile fields are present. NULL means incomplete.']
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  Note: "Migration 003 adds CHECK (gender IS NULL OR gender IN ('female','male','non_binary','prefer_not_to_say')) and CHECK (date_of_birth IS NULL OR date_of_birth > DATE '1900-01-01'). 'Not in the future' is validated in the API because CURRENT_DATE is not immutable. updated_at is maintained by the set_updated_at() trigger. Clinical data must never be stored here; it belongs in later Medical Records / Consultations tables."
+}
+
+Table specialties {
+  id uuid [pk, default: `gen_random_uuid()`]
+  name varchar(100) [not null, unique]
+  slug varchar(100) [not null, unique]
+  is_active boolean [not null, default: true]
+  created_at timestamptz [not null, default: `now()`]
+
+  Note: "Normalised rather than free text so the doctor directory can filter and group reliably, and so the planned Admin Departments module has a table to manage. Seeded in migration 003 with the twelve specialties already used by the UI."
+}
+
+Table doctor_profiles {
+  user_id uuid [pk, note: 'One profile per user. Doctor accounts are provisioned by an Admin, never by public sign-up.']
+  specialty_id uuid [not null, note: 'ON DELETE RESTRICT: a specialty in use cannot be deleted.']
+  license_number varchar(64) [not null, note: 'Unique. Admin-controlled; never self-editable by the doctor.']
+  phone varchar(32) [note: 'Optional professional contact.']
+  bio text [note: 'Optional professional biography.']
+  professional_title varchar(120) [note: 'Optional professional designation.']
+  license_verified_at timestamptz [note: 'NULL means unverified. Set when an administrator verifies the licence.']
+  license_verified_by uuid [note: 'Administrator who performed the verification.']
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  Note: "Migration 003 adds the unique index uq_doctor_profiles_license, the index idx_doctor_profiles_specialty, CHECK (char_length(btrim(license_number)) > 0), and the set_updated_at() trigger. license_number is excluded from the doctor's own PATCH allowlist; only an admin-scoped endpoint may change it, because Admin.md §6.3 requires credential verification before clinical privileges."
+}
+
+Ref: users.id - patient_profiles.user_id [delete: cascade]
+Ref: users.id - doctor_profiles.user_id [delete: cascade]
+Ref: specialties.id < doctor_profiles.specialty_id [delete: restrict]
+Ref: users.id < doctor_profiles.license_verified_by [delete: set null]

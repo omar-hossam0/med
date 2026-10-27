@@ -1,5 +1,5 @@
 {
-  "version": "3.0.0",
+  "version": "2.0.0",
   "darkMode": true,
   "gridEnabling": false,
   "currentViewName": null,
@@ -34,14 +34,32 @@
       {
         "name": "role_permissions",
         "schemaName": "public",
-        "x": 761.1129172358413,
-        "y": 458.60882410881777
+        "x": 621.1185656310101,
+        "y": 424.81708406627223
       },
       {
         "name": "sessions",
         "schemaName": "public",
         "x": 1079.5341184267072,
         "y": -35.87440243564168
+      },
+      {
+        "name": "patient_profiles",
+        "schemaName": "public",
+        "x": 582.361328125,
+        "y": 598
+      },
+      {
+        "name": "specialties",
+        "schemaName": "public",
+        "x": 12,
+        "y": 746
+      },
+      {
+        "name": "doctor_profiles",
+        "schemaName": "public",
+        "x": 582.361328125,
+        "y": 900
       }
     ],
     "tableGroupCollapseStates": [],

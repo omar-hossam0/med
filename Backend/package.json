@@ -8,6 +8,7 @@
     "dev": "nodemon server.js",
     "db:test": "node test-db.js",
     "db:migrate": "node scripts/migrate.js",
+    "db:baseline": "node scripts/baseline.js",
     "bootstrap:admin": "node scripts/bootstrap-admin.js",
     "test": "node tests/auth.test.js"
   },

@@ -138,6 +138,17 @@ async function registerPatient({ fullName, email, password }) {
       [newUser.id, patientRoleId]
     );
 
+    // Create the empty profile in the same transaction (migration 003).
+    // Public sign-up still collects only name, email and password; the patient
+    // completes the demographic fields later via My Profile. Creating the row
+    // here keeps GET /api/patients/me free of a "profile does not exist yet"
+    // case: there is always exactly one row with a stable shape.
+    await client.query(
+      `INSERT INTO patient_profiles (user_id)
+       VALUES ($1)`,
+      [newUser.id]
+    );
+
     await client.query("COMMIT");
 
     return {
@@ -157,6 +168,15 @@ async function registerPatient({ fullName, email, password }) {
       );
       conflictError.statusCode = 409;
       throw conflictError;
+    }
+    // undefined_table: the code is newer than the database schema. Surface an
+    // actionable message instead of a generic 500 so the fix is obvious.
+    if (err.code === "42P01") {
+      const schemaError = new Error(
+        "Database schema is out of date: patient_profiles is missing. Run `npm run db:migrate` in Backend/."
+      );
+      schemaError.statusCode = 500;
+      throw schemaError;
     }
     throw err;
   } finally {
