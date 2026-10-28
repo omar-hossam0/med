@@ -60,6 +60,222 @@
         "schemaName": "public",
         "x": 582.361328125,
         "y": 900
+      },
+      {
+        "name": "schema_migrations",
+        "schemaName": "public",
+        "x": 12,
+        "y": 12
+      },
+      {
+        "name": "clinic_locations",
+        "schemaName": "public",
+        "x": -207.62175074951568,
+        "y": 1139.5791205300575
+      },
+      {
+        "name": "care_relationships",
+        "schemaName": "public",
+        "x": 1586.72509765625,
+        "y": 136
+      },
+      {
+        "name": "doctor_availability",
+        "schemaName": "public",
+        "x": 927.60498046875,
+        "y": 1403
+      },
+      {
+        "name": "doctor_time_off",
+        "schemaName": "public",
+        "x": 927.60498046875,
+        "y": 1929
+      },
+      {
+        "name": "appointments",
+        "schemaName": "public",
+        "x": 927.60498046875,
+        "y": 2251
+      },
+      {
+        "name": "appointment_status_history",
+        "schemaName": "public",
+        "x": 1586.72509765625,
+        "y": 599
+      },
+      {
+        "name": "follow_ups",
+        "schemaName": "public",
+        "x": 6440.69873046875,
+        "y": 94
+      },
+      {
+        "name": "appointment_proposals",
+        "schemaName": "public",
+        "x": 7179.6181640625,
+        "y": 32
+      },
+      {
+        "name": "consultations",
+        "schemaName": "public",
+        "x": 1586.72509765625,
+        "y": 933
+      },
+      {
+        "name": "consultation_consents",
+        "schemaName": "public",
+        "x": 2268.54541015625,
+        "y": 199
+      },
+      {
+        "name": "consultation_recordings",
+        "schemaName": "public",
+        "x": 2966.07470703125,
+        "y": 199
+      },
+      {
+        "name": "transcripts",
+        "schemaName": "public",
+        "x": 3638.27197265625,
+        "y": 178
+      },
+      {
+        "name": "transcript_versions",
+        "schemaName": "public",
+        "x": 4258.2421875,
+        "y": 178
+      },
+      {
+        "name": "transcript_approvals",
+        "schemaName": "public",
+        "x": 4921.27978515625,
+        "y": 219
+      },
+      {
+        "name": "agent_executions",
+        "schemaName": "public",
+        "x": 4921.27978515625,
+        "y": 541
+      },
+      {
+        "name": "medical_reports",
+        "schemaName": "public",
+        "x": 2268.54541015625,
+        "y": 736
+      },
+      {
+        "name": "report_versions",
+        "schemaName": "public",
+        "x": 5647.8193359375,
+        "y": 240
+      },
+      {
+        "name": "report_approvals",
+        "schemaName": "public",
+        "x": 6440.69873046875,
+        "y": 693
+      },
+      {
+        "name": "report_deliveries",
+        "schemaName": "public",
+        "x": 6440.69873046875,
+        "y": 995
+      },
+      {
+        "name": "record_update_proposals",
+        "schemaName": "public",
+        "x": 6440.69873046875,
+        "y": 1458
+      },
+      {
+        "name": "medical_conditions",
+        "schemaName": "public",
+        "x": 7179.6181640625,
+        "y": 610
+      },
+      {
+        "name": "patient_medications",
+        "schemaName": "public",
+        "x": 7179.6181640625,
+        "y": 1220
+      },
+      {
+        "name": "patient_allergies",
+        "schemaName": "public",
+        "x": 7179.6181640625,
+        "y": 1958
+      },
+      {
+        "name": "medical_history_entries",
+        "schemaName": "public",
+        "x": 7179.6181640625,
+        "y": 2590
+      },
+      {
+        "name": "test_orders",
+        "schemaName": "public",
+        "x": 7179.6181640625,
+        "y": 3116
+      },
+      {
+        "name": "test_results",
+        "schemaName": "public",
+        "x": 7774.97021484375,
+        "y": 32
+      },
+      {
+        "name": "reference_documents",
+        "schemaName": "public",
+        "x": 927.60498046875,
+        "y": 3193
+      },
+      {
+        "name": "reference_document_versions",
+        "schemaName": "public",
+        "x": 1586.72509765625,
+        "y": 1300
+      },
+      {
+        "name": "document_extraction_jobs",
+        "schemaName": "public",
+        "x": 2268.54541015625,
+        "y": 1070
+      },
+      {
+        "name": "reference_chunks",
+        "schemaName": "public",
+        "x": 2268.54541015625,
+        "y": 1597
+      },
+      {
+        "name": "rag_queries",
+        "schemaName": "public",
+        "x": 927.60498046875,
+        "y": 3656
+      },
+      {
+        "name": "rag_citations",
+        "schemaName": "public",
+        "x": 2966.07470703125,
+        "y": 821
+      },
+      {
+        "name": "notifications",
+        "schemaName": "public",
+        "x": 927.60498046875,
+        "y": 4150
+      },
+      {
+        "name": "audit_logs",
+        "schemaName": "public",
+        "x": 927.60498046875,
+        "y": 4708
+      },
+      {
+        "name": "security_events",
+        "schemaName": "public",
+        "x": 1586.72509765625,
+        "y": 2018
       }
     ],
     "tableGroupCollapseStates": [],
