@@ -9,6 +9,7 @@ import { AdminComingSoonProvider } from "@/components/admin/ComingSoon";
 import { RouteGuard } from "@/components/auth/RouteGuard";
 import { useAuth } from "@/lib/auth-context";
 import { UsersProvider } from "@/components/admin/users/UsersProvider";
+import { ReferenceDataProvider } from "@/components/admin/ReferenceDataProvider";
 import {
   sidebarLayoutVars,
   sidebarContentStyle,
@@ -49,39 +50,41 @@ export default function AdminLayout({
     <RouteGuard allow={["admin"]}>
       <AdminComingSoonProvider>
         <UsersProvider>
-          <div
-            style={sidebarLayoutVars(collapsed)}
-            className="min-h-screen bg-[#F3F8F8] text-[#0F2D4A]"
-          >
-            <AdminSidebar
-              open={open}
-              onClose={() => setOpen(false)}
-              collapsed={collapsed}
-            />
+          <ReferenceDataProvider>
             <div
-              className="lg:pl-[var(--admin-sidebar-w)]"
-              style={sidebarContentStyle()}
+              style={sidebarLayoutVars(collapsed)}
+              className="min-h-screen bg-[#F3F8F8] text-[#0F2D4A]"
             >
-              <div className="p-3">
-                <AdminTopbar
-                  onMenu={() => setOpen(true)}
-                  collapsed={collapsed}
-                  onToggleCollapse={() => setCollapsed((v) => !v)}
-                />
-                <main className="mt-3">
-                  {/* Only the page content animates; the shell above stays fixed.
-                      Deliberately no `key` — remounting children on navigation
-                      would wipe nested layout state (Doctors & Staff directory). */}
-                  <motion.div
-                    initial={reduce ? { opacity: 1, y: 0 } : { opacity: 0, y: ADMIN_PAGE_OFFSET }}
-                    animate={controls}
-                  >
-                    {children}
-                  </motion.div>
-                </main>
+              <AdminSidebar
+                open={open}
+                onClose={() => setOpen(false)}
+                collapsed={collapsed}
+              />
+              <div
+                className="lg:pl-[var(--admin-sidebar-w)]"
+                style={sidebarContentStyle()}
+              >
+                <div className="p-3">
+                  <AdminTopbar
+                    onMenu={() => setOpen(true)}
+                    collapsed={collapsed}
+                    onToggleCollapse={() => setCollapsed((v) => !v)}
+                  />
+                  <main className="mt-3">
+                    {/* Only the page content animates; the shell above stays fixed.
+                        Deliberately no `key` — remounting children on navigation
+                        would wipe nested layout state (Doctors & Staff directory). */}
+                    <motion.div
+                      initial={reduce ? { opacity: 1, y: 0 } : { opacity: 0, y: ADMIN_PAGE_OFFSET }}
+                      animate={controls}
+                    >
+                      {children}
+                    </motion.div>
+                  </main>
+                </div>
               </div>
             </div>
-          </div>
+          </ReferenceDataProvider>
         </UsersProvider>
       </AdminComingSoonProvider>
     </RouteGuard>

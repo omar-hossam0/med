@@ -17,6 +17,7 @@ import { MedoraLogo } from "@/components/ui/MedoraLogo";
 import { TransitionLink } from "@/components/transitions/TransitionLink";
 import { LoginWave } from "./LoginWave";
 import { ASSETS } from "@/lib/constants";
+import { homeForRoles } from "@/lib/role-home";
 import { cn } from "@/lib/cn";
 
 import { useRouter } from "next/navigation";
@@ -99,11 +100,10 @@ export function LoginPage() {
       showNotice("Signed in successfully. Redirecting...");
 
       const roles = data.user?.roles || [];
-      if (roles.includes("admin")) {
-        router.push("/admin/dashboard");
-      } else {
-        router.push("/patient/dashboard");
-      }
+      // Every authenticated role needs a real destination. Sending a doctor to
+      // /patient/dashboard made the patient guard bounce them back to /login,
+      // which looked exactly like a failed sign-in.
+      router.push(homeForRoles(roles) ?? "/workspace");
     } catch {
       const fallbackErr = "Unable to connect to authentication server. Please ensure the backend is running.";
       setServerError(fallbackErr);

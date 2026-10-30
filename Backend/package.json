@@ -10,7 +10,8 @@
     "db:migrate": "node scripts/migrate.js",
     "db:baseline": "node scripts/baseline.js",
     "bootstrap:admin": "node scripts/bootstrap-admin.js",
-    "test": "node tests/auth.test.js"
+    "db:seed:demo": "node scripts/seed-demo-workforce.js",
+    "test": "node --test tests/auth.test.js tests/admin.test.js"
   },
   "keywords": [],
   "author": "",

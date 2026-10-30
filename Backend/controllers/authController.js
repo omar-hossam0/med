@@ -1,4 +1,5 @@
 const authService = require("../services/authService");
+const invitationService = require("../services/invitationService");
 const { SESSION_COOKIE_NAME, extractToken } = require("../middleware/auth");
 const {
   CSRF_COOKIE_NAME,
@@ -126,9 +127,39 @@ async function logout(req, res, next) {
   }
 }
 
+/**
+ * POST /api/auth/activate
+ * Public: consumes a single-use invitation or password-reset token and sets
+ * the account password. The token is the credential, so this endpoint does not
+ * require a session.
+ */
+async function activate(req, res, next) {
+  try {
+    const { token, password } = req.body;
+
+    const result = await invitationService.activate({
+      token,
+      password,
+      context: {
+        ip: req.ip || null,
+        userAgent: req.get("user-agent") || null,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Your password is set. You can now sign in.",
+      user: result,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   register,
   login,
   getMe,
   logout,
+  activate,
 };
