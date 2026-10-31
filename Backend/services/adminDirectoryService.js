@@ -247,7 +247,8 @@ async function setVerification(id, payload, actor, context = {}) {
 
     await auditService.record(client, {
       actorUserId: actor.id,
-      action: "doctor.verification_changed",
+      eventType: "doctor.verification_changed",
+      eventCategory: "approval",
       entityType: "user",
       entityId: id,
       before: { verification_status: current.rows[0].verification_status },
@@ -444,7 +445,8 @@ async function updateMember(id, payload, actor, context = {}) {
 
     await auditService.record(client, {
       actorUserId: actor.id,
-      action: "member.profile_updated",
+      eventType: "member.profile_updated",
+      eventCategory: "configuration",
       entityType: "user",
       entityId: id,
       before,

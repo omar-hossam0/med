@@ -1,5 +1,5 @@
 -- =============================================================================
--- Medora Healthcare — Migration 009: Longitudinal Medical Record
+-- Medora Healthcare — Migration 011: Longitudinal Medical Record
 -- =============================================================================
 -- Six separate clinical fact tables, kept separate on purpose: a condition is
 -- not a medication, an allergy is not a history entry, and an ordered test is

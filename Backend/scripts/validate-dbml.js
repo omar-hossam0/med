@@ -132,7 +132,7 @@ async function main() {
   const { tables, groups, refs } = parseDbml(source);
 
   // 1. Parse sanity
-  check(tables.size === 39, `DBML declares ${tables.size} tables, expected 39`);
+  check(tables.size === 42, `DBML declares ${tables.size} tables, expected 42`);
   for (const [name, cols] of tables) {
     check(cols.size > 0, `table ${name} has no parsed columns`);
   }
@@ -189,7 +189,7 @@ async function main() {
     `);
     const live = liveTables.map((r) => r.table_name);
 
-    check(live.length === 39, `live database has ${live.length} tables, expected 39`);
+    check(live.length === 42, `live database has ${live.length} tables, expected 42`);
 
     const dbmlOnly = [...tables.keys()].filter((t) => !live.includes(t));
     const liveOnly = live.filter((t) => !tables.has(t));

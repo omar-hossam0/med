@@ -1,5 +1,5 @@
 -- =============================================================================
--- Medora Healthcare — Migration 006: Consultations, Executions, Transcripts
+-- Medora Healthcare — Migration 008: Consultations, Executions, Transcripts
 -- =============================================================================
 -- Contains simplification V2 consolidation 2 of 6:
 --
@@ -255,10 +255,10 @@ CREATE TABLE agent_executions (
     consultation_id               UUID NULL
                                      REFERENCES consultations (id) ON DELETE RESTRICT,
     source_transcript_version_id  UUID NULL,  -- FK added after transcript_versions
-    source_report_version_id      UUID NULL,  -- FK added in migration 007
+    source_report_version_id      UUID NULL,  -- FK added in migration 009
 
     -- Reference-document extraction (consolidation 5).
-    reference_document_version_id UUID NULL,  -- FK added in migration 010
+    reference_document_version_id UUID NULL,  -- FK added in migration 012
     engine                        VARCHAR(80) NULL,
     engine_version                VARCHAR(50) NULL,
     output_character_count        INTEGER NULL,

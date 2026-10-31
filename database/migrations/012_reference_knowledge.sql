@@ -1,8 +1,8 @@
 -- =============================================================================
--- Medora Healthcare — Migration 010: Reference Knowledge Base, OCR and RAG
+-- Medora Healthcare — Migration 012: Reference Knowledge Base, OCR and RAG
 -- =============================================================================
 -- Completes simplification V2 consolidation 5 of 6. document_extraction_jobs is
--- never created: extraction runs through agent_executions (migration 006), and
+-- never created: extraction runs through agent_executions (migration 008), and
 -- this file adds the typed link in both directions:
 --
 --   agent_executions.reference_document_version_id  -> what is being extracted
@@ -11,7 +11,7 @@
 -- The quality gate stays where it belongs, on the document version
 -- (quality_reviewed_* / approved_*), not on the execution envelope. The
 -- knowledge base remains separate from patient records: no patient identifier is
--- stored anywhere in this module, and migration 006 forbids an extraction
+-- stored anywhere in this module, and migration 008 forbids an extraction
 -- execution from carrying patient_user_id.
 --
 -- Do NOT add BEGIN/COMMIT: the migration runner owns the transaction.

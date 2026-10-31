@@ -117,12 +117,9 @@ describe("Admin dashboard API", () => {
     }
 
     if (createdUserIds.length > 0) {
-      await pool.query("DELETE FROM security_events WHERE user_id = ANY($1::uuid[])", [
-        createdUserIds,
-      ]);
-      await pool.query("DELETE FROM audit_logs WHERE entity_id = ANY($1::uuid[])", [
-        createdUserIds,
-      ]);
+      // audit_logs is append-only in V2: rows are evidence and cannot be
+      // deleted, so the trail for these test users is intentionally left in
+      // place. Everything else is removed with the user.
       await pool.query("DELETE FROM users WHERE id = ANY($1::uuid[])", [createdUserIds]);
     }
 
@@ -217,7 +214,7 @@ describe("Admin dashboard API", () => {
          (SELECT count(*) FROM doctor_profiles WHERE user_id = $1)::int AS profiles,
          (SELECT count(*) FROM user_invitations WHERE user_id = $1)::int AS invitations,
          (SELECT count(*) FROM notifications WHERE recipient_user_id = $1)::int AS notifications,
-         (SELECT count(*) FROM audit_logs WHERE entity_id = $1 AND action = 'user.provisioned')::int AS audits`,
+         (SELECT count(*) FROM audit_logs WHERE entity_id = $1 AND event_type = 'user.provisioned')::int AS audits`,
       [doctorId]
     );
 
@@ -436,15 +433,15 @@ describe("Admin dashboard API", () => {
 
     const audit = await pool.query(
       `SELECT metadata FROM audit_logs
-       WHERE entity_id = $1 AND action = 'user.status_changed'
+       WHERE entity_id = $1 AND event_type = 'user.status_changed'
        ORDER BY occurred_at DESC LIMIT 1`,
       [doctorId]
     );
     assert.equal(audit.rows[0].metadata.reason, "Automated test suspension");
 
     const security = await pool.query(
-      `SELECT count(*)::int AS total FROM security_events
-       WHERE user_id = $1 AND event_type = 'privilege_changed'`,
+      `SELECT count(*)::int AS total FROM v_security_events
+       WHERE user_id = $1 AND event_type = 'security.privilege_changed'`,
       [doctorId]
     );
     assert.ok(security.rows[0].total >= 1);

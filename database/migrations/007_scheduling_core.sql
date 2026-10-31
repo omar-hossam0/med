@@ -1,11 +1,14 @@
 -- =============================================================================
--- Medora Healthcare — Migration 005: Clinics, Availability, Appointments, Access
+-- Medora Healthcare — Migration 007: Availability, Appointments, Access
 -- =============================================================================
 -- Scheduling module. No consolidation happens in this file; it is the
--- foundation the appointment status trail in 004 refers to.
+-- foundation the appointment status trail in 006 refers to.
+--
+-- clinic_locations is NOT created here. Migration 004_admin_workforce.sql
+-- already creates and seeds it for the Admin directory, and that migration is
+-- published, so this one reuses the table rather than duplicating it.
 --
 -- Creation order matters:
---   clinic_locations -> doctor_availability
 --   appointments -> care_relationships  (care_relationships.source_appointment_id)
 --
 -- Do NOT add BEGIN/COMMIT: the migration runner owns the transaction.
@@ -13,42 +16,7 @@
 
 
 -- -----------------------------------------------------------------------------
--- 1. clinic_locations
--- -----------------------------------------------------------------------------
-
-CREATE TABLE clinic_locations (
-    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name          VARCHAR(150) NOT NULL,
-    address_line1 VARCHAR(200) NOT NULL,
-    address_line2 VARCHAR(200) NULL,
-    city          VARCHAR(100) NOT NULL,
-    country_code  CHAR(2)      NOT NULL DEFAULT 'EG',
-    timezone      VARCHAR(64)  NOT NULL DEFAULT 'Africa/Cairo',
-    phone         VARCHAR(32)  NULL,
-    is_active     BOOLEAN      NOT NULL DEFAULT TRUE,
-    created_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    updated_at    TIMESTAMPTZ  NOT NULL DEFAULT now(),
-
-    CONSTRAINT clinic_locations_name_check
-        CHECK (char_length(btrim(name)) > 0)
-);
-
-COMMENT ON TABLE clinic_locations IS
-    'Physical clinic or virtual-service location. The timezone is the authority for interpreting local availability windows.';
-COMMENT ON COLUMN clinic_locations.is_active IS
-    'Inactive locations stay valid for historical appointments but are not offered for new bookings.';
-
-CREATE UNIQUE INDEX uq_clinic_locations_name_city ON clinic_locations (name, city);
-CREATE INDEX idx_clinic_locations_city   ON clinic_locations (city);
-CREATE INDEX idx_clinic_locations_active ON clinic_locations (is_active);
-
-CREATE TRIGGER trg_clinic_locations_updated_at
-    BEFORE UPDATE ON clinic_locations
-    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-
--- -----------------------------------------------------------------------------
--- 2. doctor_availability
+-- 1. doctor_availability
 -- -----------------------------------------------------------------------------
 -- Recurring weekly template. Slot generation subtracts doctor_time_off and
 -- existing appointments in the scheduling service.
@@ -111,7 +79,7 @@ CREATE TRIGGER trg_doctor_availability_updated_at
 
 
 -- -----------------------------------------------------------------------------
--- 3. doctor_time_off
+-- 2. doctor_time_off
 -- -----------------------------------------------------------------------------
 
 CREATE TABLE doctor_time_off (
@@ -137,7 +105,7 @@ CREATE INDEX idx_doctor_time_off_starts       ON doctor_time_off (starts_at);
 
 
 -- -----------------------------------------------------------------------------
--- 4. appointments
+-- 3. appointments
 -- -----------------------------------------------------------------------------
 -- A request and a booking are one table distinguished by status. Every status
 -- transition must also be written to audit_logs as appointment.status_changed
@@ -252,7 +220,7 @@ CREATE TRIGGER trg_appointments_updated_at
 
 
 -- -----------------------------------------------------------------------------
--- 5. care_relationships
+-- 4. care_relationships
 -- -----------------------------------------------------------------------------
 -- The record-specific access grant. A doctor reads a patient record only with
 -- an active row here (or an active assigned appointment) — never from a role

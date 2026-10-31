@@ -500,7 +500,8 @@ async function provisionUser(payload, actor, context = {}) {
 
     await auditService.record(client, {
       actorUserId: actor.id,
-      action: "user.provisioned",
+      eventType: "user.provisioned",
+      eventCategory: "provisioning",
       entityType: "user",
       entityId: user.id,
       after: {
@@ -623,7 +624,8 @@ async function updateUser(id, payload, actor, context = {}) {
 
     await auditService.record(client, {
       actorUserId: actor.id,
-      action: "user.updated",
+      eventType: "user.updated",
+      eventCategory: "configuration",
       entityType: "user",
       entityId: id,
       before: {
@@ -731,7 +733,8 @@ async function updateStatus(id, payload, actor, context = {}) {
 
     await auditService.record(client, {
       actorUserId: actor.id,
-      action: "user.status_changed",
+      eventType: "user.status_changed",
+      eventCategory: "provisioning",
       entityType: "user",
       entityId: id,
       before: { status: account.status },
@@ -829,7 +832,11 @@ async function issueInvitation(id, payload, actor, context = {}) {
 
     await auditService.record(client, {
       actorUserId: actor.id,
-      action: resolvedPurpose === "invite" ? "user.invitation_resent" : "user.password_reset_issued",
+      eventType:
+        resolvedPurpose === "invite"
+          ? "user.invitation_resent"
+          : "user.password_reset_issued",
+      eventCategory: "provisioning",
       entityType: "user",
       entityId: id,
       metadata: { purpose: resolvedPurpose },

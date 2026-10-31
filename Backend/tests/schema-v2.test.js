@@ -88,6 +88,7 @@ const EXPECTED_TABLES = [
   "consultation_consents",
   "consultation_recordings",
   "consultations",
+  "departments",
   "doctor_availability",
   "doctor_profiles",
   "doctor_time_off",
@@ -112,10 +113,12 @@ const EXPECTED_TABLES = [
   "schema_migrations",
   "sessions",
   "specialties",
+  "staff_profiles",
   "test_orders",
   "test_results",
   "transcript_versions",
   "transcripts",
+  "user_invitations",
   "user_roles",
   "users",
 ];
@@ -143,14 +146,14 @@ async function checkSchema(client) {
   `);
   const tables = tableRows.map((r) => r.table_name);
 
-  expectEqual("physical base table count", tables.length, 39);
+  expectEqual("physical base table count", tables.length, 42);
 
   const missing = EXPECTED_TABLES.filter((t) => !tables.includes(t));
   const extra = tables.filter((t) => !EXPECTED_TABLES.includes(t));
   if (missing.length === 0 && extra.length === 0) {
-    ok("table inventory matches the 39-table target exactly");
+    ok("table inventory matches the 42-table target exactly");
   } else {
-    fail("table inventory matches the 39-table target exactly",
+    fail("table inventory matches the 42-table target exactly",
       `missing: ${missing.join(",") || "none"}; unexpected: ${extra.join(",") || "none"}`);
   }
 
@@ -165,11 +168,11 @@ async function checkSchema(client) {
   const { rows: history } = await client.query(
     "SELECT version FROM schema_migrations ORDER BY version"
   );
-  expectEqual("applied migration count", history.length, 10);
+  expectEqual("applied migration count", history.length, 13);
   expectEqual(
     "migration versions",
     history.map((r) => r.version).join(","),
-    "001,002,003,004,005,006,007,008,009,010"
+    "001,002,003,004,005,006,007,008,009,010,011,012,013"
   );
 
   const { rows: unvalidated } = await client.query(`
@@ -870,7 +873,7 @@ async function checkWorkflows(client) {
     `DELETE FROM audit_logs WHERE id=$1`, [securityId]);
 
   const { rows: secView } = await client.query(
-    "SELECT * FROM v_security_events WHERE event_type='security.login_failed'"
+    "SELECT * FROM v_security_events WHERE id = $1", [securityId]
   );
   expectEqual("security: event readable through the security view", secView.length, 1);
 
@@ -912,6 +915,25 @@ async function checkWorkflows(client) {
      WHERE mc.source_proposal_id IS NOT NULL AND p.id IS NULL
   `);
   expectEqual("integrity: no clinical fact cites a missing proposal", orphanProvenance[0].n, 0);
+
+  // -- Account deletion versus the append-only trail (migration 013) --------
+  await expectFail(client, "audit: an actor cannot be reassigned to another account",
+    /cannot be reassigned/,
+    `UPDATE audit_logs SET actor_user_id = $1 WHERE id = $2`,
+    [adminId, securityId]);
+
+  await expectOk(client, "audit: the actor reference may be cleared when an account is deleted",
+    `UPDATE audit_logs SET actor_user_id = NULL WHERE id = $1`,
+    [securityId]);
+
+  await expectOk(client, "audit: deleting an audited account keeps its trail",
+    `DELETE FROM users WHERE id = $1`,
+    [patientB]);
+
+  const { rows: survived } = await client.query(
+    `SELECT count(*)::int AS n FROM audit_logs WHERE event_category = 'security'`
+  );
+  expectEqual("audit: security evidence survives account deletion", survived[0].n >= 1, true);
 }
 
 // ---------------------------------------------------------------------------

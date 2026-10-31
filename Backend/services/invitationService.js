@@ -168,10 +168,11 @@ async function activate({ token, password, context = {} }) {
 
     await auditService.record(client, {
       actorUserId: invitation.user_id,
-      action:
+      eventType:
         invitation.purpose === "invite"
           ? "user.activated"
           : "user.password_reset_completed",
+      eventCategory: "provisioning",
       entityType: "user",
       entityId: invitation.user_id,
       before: { status: invitation.status },
