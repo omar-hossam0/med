@@ -11,6 +11,7 @@ import {
   MyDoctorsCard,
   MessagesCard,
 } from "@/components/patient/DashboardLowerPanels";
+import { RevealOnScroll } from "@/components/motion/RevealOnScroll";
 
 export const metadata: Metadata = {
   title: "Patient Dashboard — Medora",
@@ -24,19 +25,25 @@ export default function PatientDashboardPage() {
       <DashboardGreeting />
       <DashboardStats />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-12">
+      <RevealOnScroll
+        stagger={60}
+        className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-12"
+      >
         <RecentAppointmentsCard />
         <HealthSummaryCard />
         <QuickActionsCard />
-      </div>
+      </RevealOnScroll>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[1.12fr_1fr_1.18fr]">
+      <RevealOnScroll
+        stagger={60}
+        className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-[1.12fr_1fr_1.18fr]"
+      >
         <RecentLabResultsCard />
         <MyDoctorsCard />
         <div className="h-full md:col-span-2 xl:col-span-1">
           <MessagesCard />
         </div>
-      </div>
+      </RevealOnScroll>
     </div>
   );
 }

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { dashboardStats, type StatIcon, type StatTone } from "@/lib/mock/patient";
 import { useComingSoon } from "./ComingSoon";
+import { RevealOnScroll } from "@/components/motion/RevealOnScroll";
 import { cn } from "@/lib/cn";
 
 const ICONS: Record<StatIcon, LucideIcon> = {
@@ -30,7 +31,12 @@ export function DashboardStats() {
   const comingSoon = useComingSoon();
 
   return (
-    <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <RevealOnScroll
+      as="section"
+      stagger={50}
+      y={14}
+      className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"
+    >
       {dashboardStats.map((stat) => {
         const Icon = ICONS[stat.icon];
         const tone = TONES[stat.tone];
@@ -69,6 +75,6 @@ export function DashboardStats() {
           </button>
         );
       })}
-    </section>
+    </RevealOnScroll>
   );
 }

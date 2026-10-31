@@ -141,6 +141,91 @@ body {
   animation: pageEnter 0.22s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
+/* Hero section load-in (staggered cascade on first page paint) */
+@keyframes heroEnter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--hero-y, 14px));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.hero-enter {
+  animation: heroEnter 0.42s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+/* Scroll reveal — opt-in only. `RevealOnScroll` adds `data-reveal` after
+   hydration and only for elements that start below the viewport, so the
+   server-rendered page is always visible without JavaScript. Only `opacity`
+   and the independent `translate` property animate, which keeps the effect
+   GPU-friendly and leaves existing `transform` hover states untouched. */
+[data-reveal="fade"] {
+  opacity: 0;
+  translate: 0 var(--reveal-y, 16px);
+  will-change: opacity, translate;
+}
+
+[data-reveal="fade"][data-reveal-state="in"] {
+  opacity: 1;
+  translate: 0 0;
+  transition:
+    opacity 420ms cubic-bezier(0.22, 1, 0.36, 1) var(--reveal-delay, 0ms),
+    translate 420ms cubic-bezier(0.22, 1, 0.36, 1) var(--reveal-delay, 0ms);
+  will-change: auto;
+}
+
+[data-reveal="stagger"] > * {
+  opacity: 0;
+  translate: 0 var(--reveal-y, 16px);
+  will-change: opacity, translate;
+}
+
+[data-reveal="stagger"][data-reveal-state="in"] > * {
+  opacity: 1;
+  translate: 0 0;
+  transition:
+    opacity 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    translate 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 200ms ease-out,
+    box-shadow 200ms ease-out,
+    border-color 200ms ease-out,
+    background-color 200ms ease-out,
+    color 200ms ease-out;
+  will-change: auto;
+}
+
+[data-reveal="stagger"] > *:nth-child(1) {
+  transition-delay: var(--reveal-delay, 0ms);
+}
+[data-reveal="stagger"] > *:nth-child(2) {
+  transition-delay: calc(var(--reveal-delay, 0ms) + var(--reveal-stagger, 50ms));
+}
+[data-reveal="stagger"] > *:nth-child(3) {
+  transition-delay: calc(var(--reveal-delay, 0ms) + var(--reveal-stagger, 50ms) * 2);
+}
+[data-reveal="stagger"] > *:nth-child(4) {
+  transition-delay: calc(var(--reveal-delay, 0ms) + var(--reveal-stagger, 50ms) * 3);
+}
+[data-reveal="stagger"] > *:nth-child(5) {
+  transition-delay: calc(var(--reveal-delay, 0ms) + var(--reveal-stagger, 50ms) * 4);
+}
+[data-reveal="stagger"] > *:nth-child(6) {
+  transition-delay: calc(var(--reveal-delay, 0ms) + var(--reveal-stagger, 50ms) * 5);
+}
+[data-reveal="stagger"] > *:nth-child(7) {
+  transition-delay: calc(var(--reveal-delay, 0ms) + var(--reveal-stagger, 50ms) * 6);
+}
+[data-reveal="stagger"] > *:nth-child(8) {
+  transition-delay: calc(var(--reveal-delay, 0ms) + var(--reveal-stagger, 50ms) * 7);
+}
+
+[data-reveal="stagger"][data-reveal-state="in"] > * {
+  opacity: 1;
+  translate: 0 0;
+}
+
 /* Per-element content reveal is no longer needed — the route-level
    `.page-enter` handles the entrance now (avoids a double animation). */
 .login-reveal {
@@ -164,6 +249,18 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /* Belt-and-braces: never leave reveal content hidden or offset. */
+  [data-reveal],
+  [data-reveal] > * {
+    opacity: 1 !important;
+    translate: none !important;
+  }
+
+  .hero-enter {
+    opacity: 1 !important;
+    transform: none !important;
   }
 }
 

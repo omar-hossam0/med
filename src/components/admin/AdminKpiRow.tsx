@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { kpis, type KpiIcon, type KpiTone } from "@/lib/mock/admin";
 import { useComingSoon } from "./ComingSoon";
+import { RevealOnScroll } from "@/components/motion/RevealOnScroll";
 import { cn } from "@/lib/cn";
 
 const ICONS: Record<KpiIcon, LucideIcon> = {
@@ -34,7 +35,12 @@ export function AdminKpiRow() {
   const comingSoon = useComingSoon();
 
   return (
-    <section className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+    <RevealOnScroll
+      as="section"
+      stagger={50}
+      y={14}
+      className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5"
+    >
       {kpis.map((kpi) => {
         const Icon = ICONS[kpi.icon];
         const tone = TONES[kpi.tone];
@@ -77,6 +83,6 @@ export function AdminKpiRow() {
           </button>
         );
       })}
-    </section>
+    </RevealOnScroll>
   );
 }

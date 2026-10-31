@@ -37,6 +37,7 @@ import {
 import { DoctorPortrait } from "../DoctorPortrait";
 import { StatusBadge } from "../ui";
 import { TAB_TRANSITION } from "@/components/transitions/tabs";
+import { RevealOnScroll } from "@/components/motion/RevealOnScroll";
 import { cn } from "@/lib/cn";
 
 type RangeFilter = "any" | "next30" | "last30" | "year";
@@ -451,7 +452,7 @@ export function AppointmentsList({
       </div>
 
       {/* Rows */}
-      <div className="mt-3 space-y-2.5">
+      <RevealOnScroll y={14} className="mt-3 space-y-2.5">
         {visible.length === 0 ? (
           <div className="rounded-2xl border border-[#E6EFEE] bg-white px-5 py-12 text-center shadow-[0_8px_26px_-22px_rgba(15,45,74,0.28)]">
             <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[#EAFBF8] text-[#0A9189]">
@@ -678,7 +679,7 @@ export function AppointmentsList({
             );
           })
         )}
-      </div>
+      </RevealOnScroll>
 
       {/* Pagination */}
       <div className="mt-3 flex flex-col gap-2 rounded-2xl border border-[#E6EFEE] bg-white px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">

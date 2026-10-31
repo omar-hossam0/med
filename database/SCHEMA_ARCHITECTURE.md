@@ -1,6 +1,18 @@
 # Medora Database Architecture
 
-**Status:** Design only — no SQL was executed, no database was altered, and no backend or frontend code was changed.
+> **⚠ SUPERSEDED — read this banner before using the document.**
+> This file describes the original **45-table V1 design** (28 October 2026) and
+> is kept for history only. It no longer matches the database.
+>
+> The implemented schema is **39 tables**, applied by migrations `001`–`010`:
+> six tables were consolidated into existing ones. The current sources of truth are:
+> - **ERD:** [`database/medora.dbml`](./medora.dbml) — verified against PostgreSQL
+> - **Beginner explanation of the real design:** [`database/DATABASE_ARCHITECTURE_V2.md`](./DATABASE_ARCHITECTURE_V2.md)
+> - **Verified starting state:** [`database/PREFLIGHT_REPORT_V2.md`](./PREFLIGHT_REPORT_V2.md)
+>
+> Do not treat any table list, column list or "PROPOSED" status below as current.
+
+**Status (historical):** Design only — no SQL was executed, no database was altered, and no backend or frontend code was changed.
 **Canonical ERD:** [`database/medora.dbml`](./medora.dbml)
 **Data dictionary:** [`database/SCHEMA_DATA_DICTIONARY.md`](./SCHEMA_DATA_DICTIONARY.md)
 **Date:** 28 October 2026

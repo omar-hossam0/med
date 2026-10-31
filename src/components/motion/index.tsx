@@ -1,40 +1,21 @@
 "use client";
 
-import { motion, useReducedMotion } from "motion/react";
-import type { ReactNode } from "react";
+import { useReducedMotion } from "motion/react";
+import type { CSSProperties, ReactNode } from "react";
+import { RevealOnScroll } from "./RevealOnScroll";
+import { cn } from "@/lib/cn";
 
 /**
- * Premium, accessible scroll-reveal primitives for Medora.
+ * Premium, accessible scroll-reveal and motion primitives for Medora.
  *
- * - Animate only transform + opacity (GPU-friendly).
- * - `whileInView` with `once: true` so content reveals a single time.
+ * - Content is 100% visible in the server-rendered HTML for progressive enhancement.
+ * - Animates only transform/translate + opacity (GPU-friendly).
+ * - Reveals smoothly when entering the viewport, once only.
  * - Fully disabled under `prefers-reduced-motion` (content renders statically).
- * - Used as small client wrappers around server-rendered content, so sections
- *   stay server components.
+ * - Avoids flash of hidden content and guarantees zero hydration mismatch.
  */
 
-const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
-
 type Tag = "div" | "span" | "li" | "ul" | "ol" | "article" | "section";
-
-function tag(t: Tag) {
-  switch (t) {
-    case "span":
-      return motion.span;
-    case "li":
-      return motion.li;
-    case "ul":
-      return motion.ul;
-    case "ol":
-      return motion.ol;
-    case "article":
-      return motion.article;
-    case "section":
-      return motion.section;
-    default:
-      return motion.div;
-  }
-}
 
 type BaseProps = {
   as?: Tag;
@@ -56,24 +37,13 @@ export function Reveal({
   className,
   children,
   delay = 0,
-  y = 32,
-  x = 0,
-  amount = 0.3,
-  duration = 0.65,
+  y = 16,
 }: RevealProps) {
-  const reduce = useReducedMotion();
-  const Tag = tag(as);
-  if (reduce) return <Tag className={className}>{children}</Tag>;
+  const delayMs = delay ? Math.round(delay * 1000) : 0;
   return (
-    <Tag
-      className={className}
-      initial={{ opacity: 0, y, x }}
-      whileInView={{ opacity: 1, y: 0, x: 0 }}
-      viewport={{ once: true, amount }}
-      transition={{ duration, delay, ease: EASE }}
-    >
+    <RevealOnScroll as={as} className={className} delay={delayMs} y={y}>
       {children}
-    </Tag>
+    </RevealOnScroll>
   );
 }
 
@@ -88,26 +58,20 @@ export function Stagger({
   as = "div",
   className,
   children,
-  stagger = 0.1,
-  delayChildren = 0.05,
-  amount = 0.2,
+  stagger = 0.06,
+  delayChildren = 0,
 }: StaggerProps) {
-  const reduce = useReducedMotion();
-  const Tag = tag(as);
-  if (reduce) return <Tag className={className}>{children}</Tag>;
+  const staggerMs = Math.round(stagger * 1000);
+  const delayMs = delayChildren ? Math.round(delayChildren * 1000) : 0;
   return (
-    <Tag
+    <RevealOnScroll
+      as={as}
       className={className}
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, amount }}
-      variants={{
-        hidden: {},
-        show: { transition: { staggerChildren: stagger, delayChildren } },
-      }}
+      stagger={staggerMs || 50}
+      delay={delayMs}
     >
       {children}
-    </Tag>
+    </RevealOnScroll>
   );
 }
 
@@ -117,26 +81,24 @@ export function StaggerItem({
   as = "div",
   className,
   children,
-  y = 24,
-  x = 0,
+  y,
 }: StaggerItemProps) {
-  const reduce = useReducedMotion();
-  const Tag = tag(as);
-  if (reduce) return <Tag className={className}>{children}</Tag>;
+  const Tag = as as "div";
   return (
     <Tag
       className={className}
-      variants={{
-        hidden: { opacity: 0, y, x },
-        show: { opacity: 1, y: 0, x: 0, transition: { duration: 0.55, ease: EASE } },
-      }}
+      style={
+        y !== undefined && y !== 16
+          ? ({ "--reveal-y": `${y}px` } as CSSProperties)
+          : undefined
+      }
     >
       {children}
     </Tag>
   );
 }
 
-/* ---------- Image reveal (fade + drift + subtle scale) ---------- */
+/* ---------- Image reveal (fade + drift) ---------- */
 type ImageRevealProps = BaseProps & {
   delay?: number;
   x?: number;
@@ -147,23 +109,13 @@ export function ImageReveal({
   as = "div",
   className,
   children,
-  delay = 0.1,
-  x = 0,
-  amount = 0.25,
+  delay = 0.08,
 }: ImageRevealProps) {
-  const reduce = useReducedMotion();
-  const Tag = tag(as);
-  if (reduce) return <Tag className={className}>{children}</Tag>;
+  const delayMs = delay ? Math.round(delay * 1000) : 0;
   return (
-    <Tag
-      className={className}
-      initial={{ opacity: 0, x, scale: 0.98 }}
-      whileInView={{ opacity: 1, x: 0, scale: 1 }}
-      viewport={{ once: true, amount }}
-      transition={{ duration: 0.7, delay, ease: EASE }}
-    >
+    <RevealOnScroll as={as} className={className} delay={delayMs} y={16}>
       {children}
-    </Tag>
+    </RevealOnScroll>
   );
 }
 
@@ -175,17 +127,22 @@ export function HeroReveal({
   className,
   children,
   delay = 0,
-  y = 24,
+  y = 14,
 }: HeroRevealProps) {
   const reduce = useReducedMotion();
-  const Tag = tag(as);
+  const Tag = as as "div";
   if (reduce) return <Tag className={className}>{children}</Tag>;
+
+  const delayMs = delay ? Math.round(delay * 1000) : 0;
   return (
     <Tag
-      className={className}
-      initial={{ opacity: 0, y }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.65, delay, ease: EASE }}
+      className={cn(className, "hero-enter")}
+      style={
+        {
+          animationDelay: `${delayMs}ms`,
+          ...(y !== 14 ? { "--hero-y": `${y}px` } : {}),
+        } as CSSProperties
+      }
     >
       {children}
     </Tag>

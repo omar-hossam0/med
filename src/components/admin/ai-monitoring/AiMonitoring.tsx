@@ -28,6 +28,7 @@ import {
 import { ReportsTable } from "./ReportsTable";
 import { ReportDetailsDrawer } from "./ReportDetailsDrawer";
 import { ActivityDrawer } from "./ActivityDrawer";
+import { RevealOnScroll } from "@/components/motion/RevealOnScroll";
 import { DemoChip, RangeSelect } from "./ui";
 
 type DrawerTab = "details" | "timeline";
@@ -163,13 +164,18 @@ export function AiMonitoring() {
         </div>
       </div>
 
-      <AiMonitoringKpis
-        summary={summary}
-        previous={previousSummary}
-        serviceState={health.state}
-      />
+      <RevealOnScroll y={14}>
+        <AiMonitoringKpis
+          summary={summary}
+          previous={previousSummary}
+          serviceState={health.state}
+        />
+      </RevealOnScroll>
 
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_268px]">
+      <RevealOnScroll
+        y={16}
+        className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_268px]"
+      >
         <div className="min-w-0 space-y-3">
           <ReportsOverviewChart
             periodReports={chartReports}
@@ -197,7 +203,7 @@ export function AiMonitoring() {
             onRangeChange={setDoctorRange}
           />
         </div>
-      </div>
+      </RevealOnScroll>
 
       <ReportDetailsDrawer
         report={selectedReport}

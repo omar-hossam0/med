@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 900" width="900" height="900" role="img" aria-label="Demo abdominal ultrasound placeholder">
+  <defs>
+    <radialGradient id="fan" cx="50%" cy="8%" r="95%">
+      <stop offset="0" stop-color="#eef4fa" stop-opacity=".62"/>
+      <stop offset="0.42" stop-color="#9aa9b8" stop-opacity=".3"/>
+      <stop offset="1" stop-color="#0a0f15" stop-opacity=".05"/>
+    </radialGradient>
+    <radialGradient id="organ" cx="50%" cy="40%" r="60%">
+      <stop offset="0" stop-color="#dfe8f2" stop-opacity=".5"/>
+      <stop offset="1" stop-color="#6d7f91" stop-opacity=".08"/>
+    </radialGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="12"/></filter>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.08"/></feComponentTransfer>
+    </filter>
+  </defs>
+
+  <rect width="900" height="900" fill="#05080c"/>
+  <rect width="900" height="900" filter="url(#grain)" opacity=".7"/>
+
+  <!-- ultrasound fan -->
+  <path d="M450 90 L130 770 A 420 420 0 0 0 770 770 Z" fill="url(#fan)" opacity=".9"/>
+  <path d="M450 90 L130 770 A 420 420 0 0 0 770 770 Z" fill="none" stroke="#dce7f2" stroke-opacity=".18" stroke-width="4"/>
+
+  <!-- organ echoes -->
+  <g filter="url(#soft)">
+    <ellipse cx="390" cy="560" rx="180" ry="105" fill="url(#organ)" opacity=".8"/>
+    <ellipse cx="590" cy="600" rx="120" ry="80" fill="url(#organ)" opacity=".55"/>
+    <ellipse cx="500" cy="470" rx="90" ry="60" fill="#b9c8d8" opacity=".12"/>
+  </g>
+
+  <!-- scan arcs -->
+  <g stroke="#e6eef7" fill="none" opacity=".14">
+    <path d="M210 700 A 300 300 0 0 1 690 700" stroke-width="3"/>
+    <path d="M260 640 A 230 230 0 0 1 640 640" stroke-width="2"/>
+    <path d="M310 580 A 160 160 0 0 1 590 580" stroke-width="2"/>
+  </g>
+
+  <!-- depth markers -->
+  <g fill="#9fb2c7" opacity=".5" font-family="Inter, Arial" font-size="14">
+    <text x="700" y="260">0 cm</text>
+    <text x="700" y="380">5 cm</text>
+    <text x="700" y="500">10 cm</text>
+    <text x="700" y="620">15 cm</text>
+  </g>
+
+  <!-- labels -->
+  <g opacity=".8">
+    <rect x="26" y="842" width="318" height="36" rx="6" fill="#000" opacity=".45"/>
+    <text x="42" y="866" fill="#9fb2c7" font-family="Inter, Arial, sans-serif" font-size="16" letter-spacing="1">DEMO ULTRASOUND — NOT CLINICAL</text>
+  </g>
+  <g opacity=".55">
+    <text x="760" y="70" fill="#9fb2c7" font-family="Inter, Arial" font-size="17" text-anchor="end">ABDOMEN</text>
+    <text x="760" y="94" fill="#6f8296" font-family="Inter, Arial" font-size="13" text-anchor="end">MEDORA DEMO SERIES</text>
+  </g>
+</svg>

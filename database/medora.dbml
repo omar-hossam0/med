@@ -1,18 +1,29 @@
 // =============================================================================
 // Medora Healthcare — Master Logical Database Schema (PostgreSQL 18)
 // =============================================================================
-// STATUS LEGEND
-//   IMPLEMENTED — created by applied migrations 001, 002 or 003.
-//   PROPOSED    — logical design only. Not present in any database until a
-//                 future numbered migration is reviewed and applied.
+// SIMPLIFICATION V2 — 39 tables, all IMPLEMENTED.
 //
-// The tables from migrations 001-003 are reproduced without structural change.
-// See database/SCHEMA_ARCHITECTURE.md and database/SCHEMA_DATA_DICTIONARY.md.
+// STATUS LEGEND
+//   IMPLEMENTED — created by an applied migration and verified against the live
+//                 development database (medora_v1). Migrations 001-010.
+//
+// Six tables from the previous 45-table design were consolidated into existing
+// tables and no longer exist:
+//   appointment_status_history -> audit_logs          (event_type appointment.status_changed)
+//   security_events            -> audit_logs          (event_category security)
+//   transcript_approvals       -> transcript_versions (review_* columns)
+//   report_approvals           -> report_versions     (review_* columns)
+//   report_deliveries          -> medical_reports     (publication_* columns)
+//   document_extraction_jobs   -> agent_executions    (extraction columns)
+//
+// database/SCHEMA_ARCHITECTURE.md and database/SCHEMA_DATA_DICTIONARY.md describe
+// the earlier V1 design and are superseded by this file and by
+// database/DATABASE_ARCHITECTURE_V2.md.
 // =============================================================================
 
 Project medora {
   database_type: "PostgreSQL"
-  Note: "Master logical schema for Medora. Tables marked PROPOSED are design objects only and are not present in PostgreSQL. Implemented objects are users, roles, user_roles, permissions, role_permissions, sessions, patient_profiles, specialties, doctor_profiles and the runner-owned schema_migrations table. Migrations 001, 002 and 003 are applied and must not be edited. The first Admin is provisioned by a separate secure bootstrap process. Admin access does not imply access to private clinical records. Authorization is enforced by the Node.js backend using role, permission and record-specific care relationships, not by frontend routing. AI agents are internal service workflows, not rows in roles."
+  Note: "Master canonical schema for Medora. 39 tables, all present in PostgreSQL as of migration 010. The first Admin is provisioned by a separate secure bootstrap process. Admin access does not imply access to private clinical records. Authorization is enforced by the Node.js backend using role, permission and record-specific care relationships, not by frontend routing. AI agents are internal service workflows, not rows in roles. Six previously proposed tables were consolidated into existing tables during Simplification V2; see database/DATABASE_ARCHITECTURE_V2.md."
 }
 
 // =============================================================================
@@ -163,7 +174,7 @@ Table clinic_locations {
     is_active [name: 'idx_clinic_locations_active']
   }
 
-  Note: "PROPOSED. Physical clinic or virtual-service location. MVP seeds one row; multi-clinic support is an open decision. timezone is the authority for interpreting local availability windows. Inactive locations remain valid for historical appointments."
+  Note: "IMPLEMENTED. Physical clinic or virtual-service location. MVP seeds one row; multi-clinic support is an open decision. timezone is the authority for interpreting local availability windows. Inactive locations remain valid for historical appointments."
 }
 
 Table care_relationships {
@@ -186,7 +197,7 @@ Table care_relationships {
     source_appointment_id [name: 'idx_care_relationships_appointment']
   }
 
-  Note: "PROPOSED. Materialises record-specific doctor access. A doctor may read a patient record only with an active row here (or an active assigned appointment), never because of a role alone. A partial unique index on (patient_user_id, doctor_user_id) WHERE status = active prevents duplicate live grants. Backend must check both status and expires_at. Admin and Staff are not granted clinical access by this table."
+  Note: "IMPLEMENTED. Materialises record-specific doctor access. A doctor may read a patient record only with an active row here (or an active assigned appointment), never because of a role alone. A partial unique index on (patient_user_id, doctor_user_id) WHERE status = active prevents duplicate live grants. Backend must check both status and expires_at. Admin and Staff are not granted clinical access by this table."
 }
 
 Table doctor_availability {
@@ -211,7 +222,7 @@ Table doctor_availability {
     (doctor_user_id, clinic_location_id, weekday, start_time, end_time, consultation_type, effective_from) [unique, name: 'uq_doctor_availability_window']
   }
 
-  Note: "PROPOSED. Recurring weekly availability template. CHECK (end_time > start_time), CHECK (weekday BETWEEN 0 AND 6), CHECK (slot_minutes BETWEEN 10 AND 120), CHECK (effective_to IS NULL OR effective_to >= effective_from). Planned btree_gist exclusion constraint prevents overlapping windows for the same doctor and weekday while both date ranges overlap; that constraint is not expressible in DBML. Doctors may view their template; Staff and Admin manage it within permission. The ownership decision is open."
+  Note: "IMPLEMENTED. Recurring weekly availability template. CHECK (end_time > start_time), CHECK (weekday BETWEEN 0 AND 6), CHECK (slot_minutes BETWEEN 10 AND 120), CHECK (effective_to IS NULL OR effective_to >= effective_from). Planned btree_gist exclusion constraint prevents overlapping windows for the same doctor and weekday while both date ranges overlap; that constraint is not expressible in DBML. Doctors may view their template; Staff and Admin manage it within permission. The ownership decision is open."
 }
 
 Table doctor_time_off {
@@ -228,7 +239,7 @@ Table doctor_time_off {
     starts_at [name: 'idx_doctor_time_off_starts']
   }
 
-  Note: "PROPOSED. Blocked periods such as leave, conferences or emergency closure. CHECK (ends_at > starts_at). Planned exclusion constraint prevents overlapping time-off rows for a doctor. Availability windows remain unchanged; slot generation subtracts these periods in the scheduling service."
+  Note: "IMPLEMENTED. Blocked periods such as leave, conferences or emergency closure. CHECK (ends_at > starts_at). Planned exclusion constraint prevents overlapping time-off rows for a doctor. Availability windows remain unchanged; slot generation subtracts these periods in the scheduling service."
 }
 
 Table appointments {
@@ -268,25 +279,7 @@ Table appointments {
     rescheduled_from_appointment_id [name: 'idx_appointments_rescheduled_from']
   }
 
-  Note: "PROPOSED. A request and a booking are one table distinguished by status; a separate appointment_requests table is a documented open decision. CHECK restricts status values, consultation types and status-aware timestamps. A confirmed booking requires both scheduled timestamps; a request may supply only requested timestamps. Planned btree_gist exclusion constraints prevent overlapping active appointments for the same doctor and for the same patient. The active set is requested, pending_confirmation, confirmed, checked_in and in_progress. Booking writes use version plus a transaction to avoid lost updates. Hard delete is not a supported operation."
-}
-
-Table appointment_status_history {
-  id uuid [pk, default: `gen_random_uuid()`]
-  appointment_id uuid [not null]
-  from_status varchar(30) [note: 'NULL for the initial row.']
-  to_status varchar(30) [not null]
-  changed_by_user_id uuid
-  change_source varchar(20) [not null, default: `'system'`, note: 'patient | staff | doctor | admin | system | agent']
-  reason varchar(500)
-  changed_at timestamptz [not null, default: `now()`]
-
-  indexes {
-    (appointment_id, changed_at) [name: 'idx_appointment_status_history_appointment']
-    changed_at [name: 'idx_appointment_status_history_changed_at']
-  }
-
-  Note: "PROPOSED. Append-only operational state history. Complements audit_logs with a compact appointment timeline. Rows are never updated or deleted by the application."
+  Note: "IMPLEMENTED (migration 005). A request and a booking are one table distinguished by status. CHECK restricts status values, consultation types and status-aware timestamps: confirmed or later requires both scheduled timestamps and confirmed_at. Status transitions are NOT stored here and NOT in a separate history table — every change writes an audit_logs row with event_type appointment.status_changed in the same transaction, readable through v_appointment_status_timeline. Booking writes use version plus a transaction to avoid lost updates. Hard delete is not a supported operation. Overlapping-appointment exclusion constraints (btree_gist) remain a planned hardening step."
 }
 
 Table follow_ups {
@@ -309,7 +302,7 @@ Table follow_ups {
     source_report_version_id [name: 'idx_follow_ups_report_version']
   }
 
-  Note: "PROPOSED. A recommendation, not a slot and not a booking. CHECK (recommended_interval_days IS NULL OR recommended_interval_days > 0). The source report version must be approved; that cross-table rule is service-enforced and auditable. A follow-up becomes scheduled only when an appointment reaches confirmed status."
+  Note: "IMPLEMENTED. A recommendation, not a slot and not a booking. CHECK (recommended_interval_days IS NULL OR recommended_interval_days > 0). The source report version must be approved; that cross-table rule is service-enforced and auditable. A follow-up becomes scheduled only when an appointment reaches confirmed status."
 }
 
 Table appointment_proposals {
@@ -336,7 +329,7 @@ Table appointment_proposals {
     created_by_agent_execution_id [name: 'idx_appointment_proposals_execution']
   }
 
-  Note: "PROPOSED. Agent 3 or Staff proposes options; a proposal is never a confirmed booking. CHECK (proposed_end_at > proposed_start_at) and CHECK ((status = 'booked') = (booked_appointment_id IS NOT NULL)). A partial unique index allows at most one live proposal per (doctor, start time) where status is proposed or selected. Staff owns daily booking operations."
+  Note: "IMPLEMENTED. Agent 3 or Staff proposes options; a proposal is never a confirmed booking. CHECK (proposed_end_at > proposed_start_at) and CHECK ((status = 'booked') = (booked_appointment_id IS NOT NULL)). A partial unique index allows at most one live proposal per (doctor, start time) where status is proposed or selected. Staff owns daily booking operations."
 }
 
 // =============================================================================
@@ -360,7 +353,7 @@ Table consultations {
     appointment_id [name: 'idx_consultations_appointment']
   }
 
-  Note: "PROPOSED. Clinical encounter container. Only the assigned doctor and a patient with an active care relationship may access it. CHECK (ended_at IS NULL OR ended_at > started_at). Demographic data stays in patient_profiles; clinical facts stay in the medical record tables."
+  Note: "IMPLEMENTED. Clinical encounter container. Only the assigned doctor and a patient with an active care relationship may access it. CHECK (ended_at IS NULL OR ended_at > started_at). Demographic data stays in patient_profiles; clinical facts stay in the medical record tables."
 }
 
 Table consultation_consents {
@@ -383,7 +376,7 @@ Table consultation_consents {
     (patient_user_id, consent_type) [name: 'idx_consultation_consents_patient']
   }
 
-  Note: "PROPOSED. CHECK requires granted_at for granted or revoked rows, and revoked_at only for revoked rows. Audio recording must not start without an audio_recording consent row in granted status. Transcription and AI-assisted documentation scopes are PROPOSED; the required legal scopes remain an open decision."
+  Note: "IMPLEMENTED. CHECK requires granted_at for granted or revoked rows, and revoked_at only for revoked rows. Audio recording must not start without an audio_recording consent row in granted status. Transcription and AI-assisted documentation scopes are PROPOSED; the required legal scopes remain an open decision."
 }
 
 Table consultation_recordings {
@@ -411,7 +404,7 @@ Table consultation_recordings {
     status [name: 'idx_consultation_recordings_status']
   }
 
-  Note: "PROPOSED. Stores audio metadata and an object reference, never audio bytes. CHECK (recorded_ended_at IS NULL OR recorded_started_at IS NULL OR recorded_ended_at > recorded_started_at). Deleting the consultation is restricted while recordings exist; retention deletion is represented by status = deleted plus deleted_at, with audit."
+  Note: "IMPLEMENTED. Stores audio metadata and an object reference, never audio bytes. CHECK (recorded_ended_at IS NULL OR recorded_started_at IS NULL OR recorded_ended_at > recorded_started_at). Deleting the consultation is restricted while recordings exist; retention deletion is represented by status = deleted plus deleted_at, with audit."
 }
 
 Table transcripts {
@@ -431,7 +424,7 @@ Table transcripts {
     status [name: 'idx_transcripts_status']
   }
 
-  Note: "PROPOSED. A transcript document with immutable versions. Status on this row is a convenience summary; the authoritative approval is transcript_approvals on a specific version. Manual transcripts are allowed; speech-to-text transcripts must reference their recording."
+  Note: "IMPLEMENTED (migration 006). A transcript document with immutable versions. Status on this row is a convenience summary maintained by trigger trg_transcript_versions_sync_status from the authoritative review decision on a specific version — never edit it directly. Manual transcripts are allowed; speech-to-text transcripts must reference their recording."
 }
 
 Table transcript_versions {
@@ -444,26 +437,21 @@ Table transcript_versions {
   generated_by_execution_id uuid [note: 'Set when generated by speech-to-text.']
   edited_by_user_id uuid [note: 'Set when a doctor corrected the draft.']
   content_hash char(64) [not null, note: 'SHA-256 of the canonical content for integrity checks.']
+  review_decision varchar(20) [note: 'NULL = awaiting review. approved | rejected. Absorbs the former transcript_approvals.decision.']
+  reviewed_by_user_id uuid [note: 'Doctor who decided. Trigger-enforced: must hold the doctor role and be the consultation doctor or hold an active care relationship.']
+  reviewed_at timestamptz [note: 'Decision timestamp. Defaulted by trigger when a decision is written.']
+  review_note text [note: 'Absorbs the former transcript_approvals.note.']
   created_at timestamptz [not null, default: `now()`]
 
   indexes {
     (transcript_id, version_number) [unique, name: 'uq_transcript_versions_number']
-    generated_by_execution_id [name: 'idx_transcript_versions_execution']
+    generated_by_execution_id [name: 'idx_transcript_versions_execution', note: 'Partial: WHERE generated_by_execution_id IS NOT NULL.']
+    (transcript_id) [name: 'idx_transcript_versions_pending_review', note: 'Partial: WHERE review_decision IS NULL. The review queue.']
+    (transcript_id, version_number) [name: 'idx_transcript_versions_approved', note: 'Partial: WHERE review_decision = approved. Agent 1 input lookup.']
+    (reviewed_by_user_id, reviewed_at) [name: 'idx_transcript_versions_reviewer', note: 'Partial: WHERE reviewed_by_user_id IS NOT NULL.']
   }
 
-  Note: "PROPOSED. Append-only. CHECK (version_number > 0) and CHECK (is_doctor_edited = false OR edited_by_user_id IS NOT NULL). Approved versions must never be updated; a correction creates a new version. Only an approved version may be consumed by Agent 1."
-}
-
-Table transcript_approvals {
-  id uuid [pk, default: `gen_random_uuid()`]
-  transcript_version_id uuid [not null, unique]
-  decision varchar(20) [not null, note: 'approved | rejected']
-  decided_by_user_id uuid [not null, note: 'Must hold the doctor role and an active care relationship.']
-  decided_at timestamptz [not null, default: `now()`]
-  note text
-  created_at timestamptz [not null, default: `now()`]
-
-  Note: "PROPOSED. One decision per immutable transcript version. Doctor approval is the only gate that releases a transcript into report generation. Staff and Admin cannot substitute for this decision."
+  Note: "IMPLEMENTED (migration 006). Append-only content WITH its own doctor review decision, replacing the former transcript_approvals table (one decision per immutable version, so nothing is lost by co-locating it). CHECK requires version_number > 0, a non-empty content, a 64-hex content_hash, attribution for doctor edits, and decision/reviewer/timestamp to exist together. Trigger trg_transcript_versions_immutable refuses DELETE and freezes a reviewed version; an unreviewed version may receive its decision and nothing else. A correction creates a new version. Only an approved version may be consumed by Agent 1 — enforced by trigger on agent_executions and on report_versions.source_transcript_version_id. A rejected version remains available for audit."
 }
 
 // =============================================================================
@@ -472,39 +460,44 @@ Table transcript_approvals {
 
 Table agent_executions {
   id uuid [pk, default: `gen_random_uuid()`]
-  agent_code varchar(40) [not null, note: 'speech_to_text | agent_1_report_generation | agent_2_profile_organization | agent_3_follow_up_scheduling']
+  agent_code varchar(40) [not null, note: 'speech_to_text | agent_1_report_generation | agent_2_profile_organization | agent_3_follow_up_scheduling | ocr_extraction | digital_text_extraction']
   status varchar(20) [not null, default: `'queued'`, note: 'queued | running | succeeded | failed | cancelled']
-  patient_user_id uuid
+  patient_user_id uuid [note: 'NULL for reference-document extraction. CHECK forbids a patient on an extraction execution.']
   consultation_id uuid
-  source_transcript_version_id uuid
-  source_report_version_id uuid
+  source_transcript_version_id uuid [note: 'Agent 1 input. Trigger-enforced as doctor-approved.']
+  source_report_version_id uuid [note: 'Agent 2 input. Trigger-enforced as doctor-approved.']
+  reference_document_version_id uuid [note: 'Extraction input: the reference document version being read. Absorbs document_extraction_jobs.document_version_id.']
+  engine varchar(80) [note: 'Extraction engine, e.g. tesseract. Required on extraction executions. Absorbs document_extraction_jobs.engine.']
+  engine_version varchar(50) [note: 'Absorbs document_extraction_jobs.engine_version.']
+  output_character_count integer [note: 'Length of the extracted text. Absorbs document_extraction_jobs.output_character_count.']
   requested_by_user_id uuid
   idempotency_key varchar(150) [not null]
-  attempt_number integer [not null, default: 1]
+  attempt_number integer [not null, default: 1, note: 'Absorbs the retry semantics of document_extraction_jobs: one row per attempt.']
   retry_of_execution_id uuid
   model_provider varchar(80)
   model_name varchar(120)
   model_version varchar(80)
   prompt_version varchar(50)
   input_hash char(64)
-  output_hash char(64)
+  output_hash char(64) [note: 'Absorbs document_extraction_jobs.output_checksum.']
   started_at timestamptz
   completed_at timestamptz
-  error_code varchar(80)
+  error_code varchar(80) [note: 'Absorbs document_extraction_jobs.error_code.']
   error_message text
-  metadata jsonb [not null, default: `'{}'`, note: 'Non-clinical execution metadata only. Never store prompts containing patient narratives here.']
+  metadata jsonb [not null, default: `'{}'`, note: 'Non-clinical execution metadata only. Never store prompts containing patient narratives or extracted document text here.']
   created_at timestamptz [not null, default: `now()`]
 
   indexes {
     (agent_code, idempotency_key, attempt_number) [unique, name: 'uq_agent_executions_idempotency']
     status [name: 'idx_agent_executions_status']
-    (patient_user_id, created_at) [name: 'idx_agent_executions_patient_created']
-    consultation_id [name: 'idx_agent_executions_consultation']
-    source_transcript_version_id [name: 'idx_agent_executions_transcript']
-    source_report_version_id [name: 'idx_agent_executions_report']
+    (patient_user_id, created_at) [name: 'idx_agent_executions_patient_created', note: 'Partial: WHERE patient_user_id IS NOT NULL.']
+    consultation_id [name: 'idx_agent_executions_consultation', note: 'Partial: WHERE consultation_id IS NOT NULL.']
+    source_transcript_version_id [name: 'idx_agent_executions_transcript', note: 'Partial: WHERE source_transcript_version_id IS NOT NULL.']
+    source_report_version_id [name: 'idx_agent_executions_report', note: 'Partial: WHERE source_report_version_id IS NOT NULL.']
+    (reference_document_version_id, created_at) [name: 'idx_agent_executions_reference_version', note: 'Partial: WHERE reference_document_version_id IS NOT NULL. The ingestion lookup.']
   }
 
-  Note: "PROPOSED. Shared audit envelope for internal AI services, not a human role. CHECK (completed_at IS NULL OR started_at IS NULL OR completed_at >= started_at), CHECK (attempt_number > 0), and agent-specific source checks: speech_to_text, Agent 1 and Agent 2 require consultation_id; Agent 1 additionally requires source_transcript_version_id, Agent 2 requires source_report_version_id, and Agent 3 requires consultation_id. Retries create a new attempt row linked by retry_of_execution_id; the idempotency key plus attempt number is unique. Agent 1 creates exactly three medical_reports rows in one transaction, each with its own report_versions."
+  Note: "IMPLEMENTED (migrations 006, 007, 010). Shared audit envelope for internal AI services and document extraction — not a human role. Absorbs the former document_extraction_jobs table: one envelope now tracks speech-to-text, Agent 1, Agent 2, Agent 3, OCR and digital text extraction, with retries expressed as attempt_number + retry_of_execution_id instead of a separate table. CHECK constraints: extraction codes require reference_document_version_id and engine, and forbid patient_user_id and consultation_id, which keeps the reference knowledge base structurally separate from patient records; every other code requires consultation_id; Agent 1 requires source_transcript_version_id; Agent 2 requires source_report_version_id. Trigger trg_agent_executions_inputs refuses an unapproved transcript or report input. Extraction quality and reviewer information is deliberately NOT duplicated here: it lives on reference_document_versions.quality_reviewed_* and approved_*."
 }
 
 Table medical_reports {
@@ -513,7 +506,11 @@ Table medical_reports {
   patient_user_id uuid [not null]
   doctor_user_id uuid [not null, note: 'Doctor accountable for review and approval.']
   report_type varchar(40) [not null, note: 'report_1_patient_summary | report_2_structured_profile | report_3_medical_report']
-  status varchar(20) [not null, default: `'draft'`, note: 'draft | in_review | approved | rejected | superseded | released']
+  status varchar(20) [not null, default: `'draft'`, note: 'draft | in_review | approved | rejected | superseded | released. Maintained by trigger from report_versions.review_decision.']
+  publication_state varchar(20) [not null, default: `'unpublished'`, note: 'unpublished | published | withdrawn. Absorbs the former report_deliveries.status.']
+  published_version_id uuid [note: 'The exact doctor-approved Report 1 version the patient can read. Absorbs report_deliveries.report_version_id.']
+  published_at timestamptz [note: 'Absorbs report_deliveries.delivered_at.']
+  published_by_user_id uuid [note: 'Absorbs report_deliveries.delivered_by_user_id.']
   created_at timestamptz [not null, default: `now()`]
   updated_at timestamptz [not null, default: `now()`]
 
@@ -521,9 +518,10 @@ Table medical_reports {
     (consultation_id, report_type) [unique, name: 'uq_medical_reports_consultation_type']
     (patient_user_id, status) [name: 'idx_medical_reports_patient_status']
     (doctor_user_id, status) [name: 'idx_medical_reports_doctor_status']
+    (patient_user_id, published_at) [name: 'idx_medical_reports_published', note: 'Partial: WHERE publication_state = published. The patient portal query.']
   }
 
-  Note: "PROPOSED. Exactly one report document per type per consultation; versions are separate rows and each version records the exact approved transcript version it used. Report 1 is the patient-friendly summary and is the only type with a defined patient-delivery path. Report 2 is the structured input for Agent 2. Report 3 is a separate medical report whose purpose, recipient and destination remain UNRESOLVED; this design deliberately defines no delivery path or clinical workflow for it. Status is a summary maintained transactionally from report_approvals."
+  Note: "IMPLEMENTED (migration 007). Exactly one report document per type per consultation; versions are separate rows and each version records the exact approved transcript version it used. Report 1 is the patient-friendly summary and is the only type with a patient-visible path. Report 2 is the structured input for Agent 2. Report 3 is a separate medical report whose purpose, recipient and destination remain UNRESOLVED; this design deliberately defines no publication path for it, enforced by CHECK. Absorbs the former report_deliveries table: the MVP publishes approved Report 1 inside the authenticated patient portal, so publication state, version, timestamp and actor are columns here. Trigger trg_medical_reports_publication refuses publication of a non-Report-1, a version belonging to another report, an unapproved version, and reverting published to unpublished (withdraw instead). Multi-channel or repeat delivery (email, WhatsApp, per-channel receipts) is NOT supported and would require a new table."
 }
 
 Table report_versions {
@@ -532,54 +530,26 @@ Table report_versions {
   version_number integer [not null]
   content jsonb [not null, note: 'Structured report payload. Schema varies by report_type and is versioned by content_schema_version.']
   content_schema_version varchar(20) [not null, default: `'v1'`]
-  source_transcript_version_id uuid [not null, note: 'Exact doctor-approved transcript version used to produce this report version.']
+  source_transcript_version_id uuid [not null, note: 'Exact doctor-approved transcript version used to produce this report version. Trigger-enforced as approved.']
   rendered_text text [note: 'Optional patient-safe or PDF-ready rendering. Not a substitute for the structured content.']
   generated_by_execution_id uuid
   edited_by_user_id uuid
   content_hash char(64) [not null]
+  review_decision varchar(20) [note: 'NULL = awaiting review. approved | rejected. Absorbs the former report_approvals.decision.']
+  reviewed_by_user_id uuid [note: 'Doctor who decided. Trigger-enforced: doctor role plus consultation authority.']
+  reviewed_at timestamptz [note: 'Decision timestamp. Defaulted by trigger when a decision is written.']
+  review_note text [note: 'Absorbs the former report_approvals.note.']
   created_at timestamptz [not null, default: `now()`]
 
   indexes {
     (report_id, version_number) [unique, name: 'uq_report_versions_number']
     source_transcript_version_id [name: 'idx_report_versions_source_transcript']
-    generated_by_execution_id [name: 'idx_report_versions_execution']
+    generated_by_execution_id [name: 'idx_report_versions_execution', note: 'Partial: WHERE generated_by_execution_id IS NOT NULL.']
+    (report_id) [name: 'idx_report_versions_pending_review', note: 'Partial: WHERE review_decision IS NULL. The doctor review queue.']
+    (report_id, version_number) [name: 'idx_report_versions_approved', note: 'Partial: WHERE review_decision = approved.']
   }
 
-  Note: "PROPOSED. Append-only report content. CHECK (version_number > 0). Each version links to the exact approved transcript version that produced it, so a later transcript approval does not rewrite provenance. Doctor edits create a new version; an approved version is never mutated. AI output has no clinical authority until report_approvals records a doctor decision. Rendered PDF artefacts and their storage destination are not modelled; that decision is open."
-}
-
-Table report_approvals {
-  id uuid [pk, default: `gen_random_uuid()`]
-  report_version_id uuid [not null, unique]
-  decision varchar(20) [not null, note: 'approved | rejected']
-  decided_by_user_id uuid [not null, note: 'Must hold the doctor role and an active care relationship.']
-  decided_at timestamptz [not null, default: `now()`]
-  note text
-  created_at timestamptz [not null, default: `now()`]
-
-  Note: "PROPOSED. One decision per report version. Only a doctor may approve. Staff, Admin and AI services cannot approve clinical reports. Approval of Report 1 is a precondition for report_deliveries; approval of Report 2 is a precondition for Agent 2 record proposals; Report 3 approval remains internal until its purpose is defined."
-}
-
-Table report_deliveries {
-  id uuid [pk, default: `gen_random_uuid()`]
-  report_version_id uuid [not null]
-  patient_user_id uuid [not null]
-  channel varchar(20) [not null, note: 'patient_portal | email']
-  status varchar(20) [not null, default: `'pending'`, note: 'pending | delivered | viewed | failed | revoked']
-  delivered_by_user_id uuid
-  delivered_at timestamptz
-  viewed_at timestamptz
-  revoked_at timestamptz
-  revocation_reason varchar(500)
-  metadata jsonb [not null, default: `'{}'`, note: 'Transport metadata only. Do not store report content or clinical narrative.']
-  created_at timestamptz [not null, default: `now()`]
-
-  indexes {
-    (report_version_id, patient_user_id, channel) [unique, name: 'uq_report_deliveries_target']
-    (patient_user_id, status, delivered_at) [name: 'idx_report_deliveries_patient_status']
-  }
-
-  Note: "PROPOSED. Delivery record for an approved Report 1 version only; the report_type and approval checks are service-enforced and should also be enforced by a trigger in migration hardening. CHECK requires delivered_at for delivered or viewed and revoked_at for revoked. Revocation preserves the original delivery row. Only doctor-approved final clinical information may be delivered."
+  Note: "IMPLEMENTED (migration 007). Append-only report content WITH its own doctor review decision, replacing the former report_approvals table. CHECK requires version_number > 0, a 64-hex content_hash, and decision/reviewer/timestamp to exist together. Each version links to the exact approved transcript version that produced it, so a later transcript approval does not rewrite provenance; trigger trg_report_versions_source_transcript refuses an unapproved source. Doctor edits create a new version; an approved version is never mutated (trigger trg_report_versions_immutable). AI output has no clinical authority until a doctor sets review_decision. Rendered PDF artefacts and their storage destination are not modelled; that decision is open."
 }
 
 Table record_update_proposals {
@@ -608,7 +578,7 @@ Table record_update_proposals {
     (target_entity_type, target_entity_id) [name: 'idx_record_update_proposals_target']
   }
 
-  Note: "PROPOSED. Agent 2 proposes; a doctor reviews and approves; only then may the service apply the change. CHECK (conflict_detected = false OR conflict_details IS NOT NULL) and CHECK (status = 'proposed' OR reviewed_by_user_id IS NOT NULL). A proposal is never a silent overwrite. target_entity_id is polymorphic by design; referential integrity for the target is validated in one transaction before apply. applied_at is set only when the fact row has been written."
+  Note: "IMPLEMENTED (migration 007). Agent 2 proposes; a doctor reviews and approves; only then may the service apply the change. CHECK (conflict_detected = false OR conflict_details IS NOT NULL), CHECK (status = proposed OR reviewed_by_user_id IS NOT NULL), CHECK ((status = applied) = (applied_at IS NOT NULL)), and CHECK (proposal_type = create OR target_entity_id IS NOT NULL). A proposal is never a silent overwrite: the six medical-record tables run enforce_medical_record_provenance(), which refuses a derived fact whose proposal is not approved and applied. target_entity_id is polymorphic by design; referential integrity for the target is validated in one transaction before apply."
 }
 
 // =============================================================================
@@ -645,7 +615,7 @@ Table medical_conditions {
     source_report_version_id [name: 'idx_medical_conditions_source_version']
   }
 
-  Note: "PROPOSED. CHECK (resolved_date IS NULL OR onset_date IS NULL OR resolved_date >= onset_date), CHECK (coding_system IS NULL OR condition_code IS NOT NULL), and CHECK (source_type IN ('patient_reported','doctor_entered','agent_2_derived','imported')). Agent 2 writes require an approved record_update_proposals row. No hard delete; corrections set superseded_by_id and create a new row."
+  Note: "IMPLEMENTED. CHECK (resolved_date IS NULL OR onset_date IS NULL OR resolved_date >= onset_date), CHECK (coding_system IS NULL OR condition_code IS NOT NULL), and CHECK (source_type IN ('patient_reported','doctor_entered','agent_2_derived','imported')). Agent 2 writes require an approved record_update_proposals row. No hard delete; corrections set superseded_by_id and create a new row."
 }
 
 Table patient_medications {
@@ -676,7 +646,7 @@ Table patient_medications {
     source_report_version_id [name: 'idx_patient_medications_source_version']
   }
 
-  Note: "PROPOSED. CHECK (ended_on IS NULL OR started_on IS NULL OR ended_on >= started_on). Stopping a medication changes status and ended_on on a new corrected row; the previous row is retained via superseded_by_id. Agent 2 cannot write without doctor approval."
+  Note: "IMPLEMENTED. CHECK (ended_on IS NULL OR started_on IS NULL OR ended_on >= started_on). Stopping a medication changes status and ended_on on a new corrected row; the previous row is retained via superseded_by_id. Agent 2 cannot write without doctor approval."
 }
 
 Table patient_allergies {
@@ -702,7 +672,7 @@ Table patient_allergies {
     source_report_version_id [name: 'idx_patient_allergies_source_version']
   }
 
-  Note: "PROPOSED. Allergy status is clinically significant and is never silently removed. Resolution requires a new corrected row and doctor review. CHECK (coding_system IS NULL OR allergen_code IS NOT NULL)."
+  Note: "IMPLEMENTED. Allergy status is clinically significant and is never silently removed. Resolution requires a new corrected row and doctor review. CHECK (coding_system IS NULL OR allergen_code IS NOT NULL)."
 }
 
 Table medical_history_entries {
@@ -727,7 +697,7 @@ Table medical_history_entries {
     source_report_version_id [name: 'idx_medical_history_source_version']
   }
 
-  Note: "PROPOSED. General longitudinal history for events that are not conditions, medications or allergies. Family history is represented here because no separate family-member model is approved. No hard delete; corrections use superseded_by_id."
+  Note: "IMPLEMENTED. General longitudinal history for events that are not conditions, medications or allergies. Family history is represented here because no separate family-member model is approved. No hard delete; corrections use superseded_by_id."
 }
 
 Table test_orders {
@@ -758,7 +728,7 @@ Table test_orders {
     source_report_version_id [name: 'idx_test_orders_source_version']
   }
 
-  Note: "PROPOSED. An ordered test is not a completed test. CHECK (completed_at IS NULL OR completed_at >= ordered_at) and CHECK (status <> 'cancelled' OR cancelled_at IS NOT NULL). Completion is represented by status resulted plus completed_at; individual analytes and values live in test_results. Ordered tests requested in Report 1 must remain distinguishable from completed results."
+  Note: "IMPLEMENTED. An ordered test is not a completed test. CHECK (completed_at IS NULL OR completed_at >= ordered_at) and CHECK (status <> 'cancelled' OR cancelled_at IS NOT NULL). Completion is represented by status resulted plus completed_at; individual analytes and values live in test_results. Ordered tests requested in Report 1 must remain distinguishable from completed results."
 }
 
 Table test_results {
@@ -792,7 +762,7 @@ Table test_results {
     superseded_by_id [name: 'idx_test_results_superseded_by']
   }
 
-  Note: "PROPOSED. One row per analyte or reported value. CHECK (value_text IS NOT NULL OR value_numeric IS NOT NULL OR document_key IS NOT NULL). CHECK (verified_at IS NULL OR verified_by_user_id IS NOT NULL). A corrected result creates a new row and points the old row to it through superseded_by_id; results are never overwritten. document_provider and document_key are placeholders until storage architecture is approved."
+  Note: "IMPLEMENTED. One row per analyte or reported value. CHECK (value_text IS NOT NULL OR value_numeric IS NOT NULL OR document_key IS NOT NULL). CHECK (verified_at IS NULL OR verified_by_user_id IS NOT NULL). A corrected result creates a new row and points the old row to it through superseded_by_id; results are never overwritten. document_provider and document_key are placeholders until storage architecture is approved."
 }
 
 // =============================================================================
@@ -821,7 +791,7 @@ Table reference_documents {
     (source_type, is_active) [name: 'idx_reference_documents_type_active']
   }
 
-  Note: "PROPOSED. Bibliographic work in the medical reference knowledge base. Separate authorization and retention from patient-specific data. CHECK (publication_year IS NULL OR publication_year BETWEEN 1800 AND 2100). A document is retired, not deleted, once referenced by citations."
+  Note: "IMPLEMENTED. Bibliographic work in the medical reference knowledge base. Separate authorization and retention from patient-specific data. CHECK (publication_year IS NULL OR publication_year BETWEEN 1800 AND 2100). A document is retired, not deleted, once referenced by citations."
 }
 
 Table reference_document_versions {
@@ -835,7 +805,8 @@ Table reference_document_versions {
   file_size_bytes bigint
   page_count integer
   extraction_method varchar(20) [not null, note: 'digital_text | ocr | hybrid']
-  normalized_text text [note: 'Quality-reviewed, normalized text. May move to object storage if the storage decision requires it.']
+  normalized_text text [note: 'Quality-reviewed, normalized text. May move to object storage if the storage decision requires it. Cannot be set without extraction_execution_id.']
+  extraction_execution_id uuid [note: 'The agent_executions row (ocr_extraction or digital_text_extraction) that produced normalized_text. Absorbs the former document_extraction_jobs link.']
   status varchar(30) [not null, default: `'uploaded'`, note: 'uploaded | extracting | extraction_failed | extracted | quality_review | approved | indexed | retired']
   quality_reviewed_by_user_id uuid
   quality_reviewed_at timestamptz
@@ -851,33 +822,10 @@ Table reference_document_versions {
     (file_storage_provider, file_key) [unique, name: 'uq_reference_document_versions_object']
     (document_id, status) [name: 'idx_reference_document_versions_document_status']
     status [name: 'idx_reference_document_versions_status']
+    extraction_execution_id [name: 'idx_reference_document_versions_extraction', note: 'Partial: WHERE extraction_execution_id IS NOT NULL.']
   }
 
-  Note: "PROPOSED. Immutable source file plus its extraction and quality state. CHECK (page_count IS NULL OR page_count > 0), CHECK (quality_reviewed_at IS NULL OR quality_reviewed_by_user_id IS NOT NULL), and CHECK (approved_at IS NULL OR approved_by_user_id IS NOT NULL). Indexing requires quality review and approval. The version is retired, not deleted, after it has been cited. Storage architecture is an open decision; only provider, key and checksum are assumed."
-}
-
-Table document_extraction_jobs {
-  id uuid [pk, default: `gen_random_uuid()`]
-  document_version_id uuid [not null]
-  job_type varchar(20) [not null, note: 'text_extraction | ocr']
-  engine varchar(80) [not null]
-  engine_version varchar(50)
-  status varchar(20) [not null, default: `'queued'`, note: 'queued | running | succeeded | failed | cancelled']
-  started_at timestamptz
-  completed_at timestamptz
-  output_checksum char(64)
-  output_character_count integer
-  error_code varchar(80)
-  error_message text
-  created_by_user_id uuid
-  created_at timestamptz [not null, default: `now()`]
-
-  indexes {
-    (document_version_id, status) [name: 'idx_document_extraction_jobs_version_status']
-    status [name: 'idx_document_extraction_jobs_status']
-  }
-
-  Note: "PROPOSED. One row per extraction or OCR attempt, including retries. CHECK (completed_at IS NULL OR started_at IS NULL OR completed_at >= started_at). Raw engine output remains in storage or normalized_text; this table records provenance and outcome, not the document text."
+  Note: "IMPLEMENTED (migration 010). Immutable source file plus its extraction and quality state, and the quality gate of the knowledge base. CHECK (page_count IS NULL OR page_count > 0), CHECK (quality_reviewed_at IS NULL OR quality_reviewed_by_user_id IS NOT NULL), CHECK (approved_at IS NULL OR approved_by_user_id IS NOT NULL), and CHECK (status <> indexed OR approved_at IS NOT NULL) so indexing cannot precede quality approval. normalized_text must come from an extraction execution. The version is retired, not deleted, after it has been cited. Storage architecture is an open decision; only provider, key and checksum are assumed."
 }
 
 Table reference_chunks {
@@ -903,7 +851,7 @@ Table reference_chunks {
     (document_version_id, embedding_status) [name: 'idx_reference_chunks_version_embedding']
   }
 
-  Note: "PROPOSED. Retrieval unit derived from an approved document version. CHECK (chunk_index >= 0), CHECK (token_count IS NULL OR token_count > 0), CHECK (page_to IS NULL OR page_from IS NULL OR page_to >= page_from). No vector column is declared because pgvector or an external vector store is not approved. If pgvector is approved later, add a vector column and an ANN index in a new migration. A GIN full-text index on content is planned."
+  Note: "IMPLEMENTED. Retrieval unit derived from an approved document version. CHECK (chunk_index >= 0), CHECK (token_count IS NULL OR token_count > 0), CHECK (page_to IS NULL OR page_from IS NULL OR page_to >= page_from). No vector column is declared because pgvector or an external vector store is not approved. If pgvector is approved later, add a vector column and an ANN index in a new migration. A GIN full-text index on content is planned."
 }
 
 Table rag_queries {
@@ -926,7 +874,7 @@ Table rag_queries {
     (answer_status, created_at) [name: 'idx_rag_queries_status_created']
   }
 
-  Note: "PROPOSED. A clinician question answered from the reference knowledge base, with evidence citations. Must not store patient identifiers or patient-specific documents. If a clinician includes patient context in the question, that context is not persisted here; the reference workflow stays separate from the medical record. CHECK (answer_status <> 'answered' OR answer IS NOT NULL)."
+  Note: "IMPLEMENTED. A clinician question answered from the reference knowledge base, with evidence citations. Must not store patient identifiers or patient-specific documents. If a clinician includes patient context in the question, that context is not persisted here; the reference workflow stays separate from the medical record. CHECK (answer_status <> 'answered' OR answer IS NOT NULL)."
 }
 
 Table rag_citations {
@@ -943,7 +891,7 @@ Table rag_citations {
     (rag_query_id, rank) [unique, name: 'uq_rag_citations_query_rank']
   }
 
-  Note: "PROPOSED. Evidence attached to an answer. CHECK (rank > 0) and CHECK (relevance_score IS NULL OR (relevance_score >= 0 AND relevance_score <= 1)). A missing citation is a signal of insufficient evidence, not permission to answer without evidence."
+  Note: "IMPLEMENTED. Evidence attached to an answer. CHECK (rank > 0) and CHECK (relevance_score IS NULL OR (relevance_score >= 0 AND relevance_score <= 1)). A missing citation is a signal of insufficient evidence, not permission to answer without evidence."
 }
 
 // =============================================================================
@@ -972,58 +920,50 @@ Table notifications {
     (scheduled_for, status) [name: 'idx_notifications_scheduled']
   }
 
-  Note: "PROPOSED. User-facing notification record. Not a clinical record and not a substitute for report approval or delivery. related_entity_type and related_entity_id are polymorphic on purpose; the service must verify that the recipient is authorised to open the linked object. Notification preferences are not yet modelled."
+  Note: "IMPLEMENTED. User-facing notification record. Not a clinical record and not a substitute for report approval or delivery. related_entity_type and related_entity_id are polymorphic on purpose; the service must verify that the recipient is authorised to open the linked object. Notification preferences are not yet modelled."
 }
 
 Table audit_logs {
   id uuid [pk, default: `gen_random_uuid()`]
+  event_type varchar(60) [not null, note: 'Stable namespaced event code: appointment.status_changed, report.approved, security.login_failed. Must match ^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$.']
+  event_category varchar(30) [not null, note: 'appointment | security | clinical_access | approval | provisioning | configuration | system. For security events this must be the event_type namespace.']
+  severity varchar(20) [not null, default: `'info'`, note: 'info | warning | critical. Meaningful for security events; info elsewhere.']
   actor_user_id uuid
-  actor_type varchar(20) [not null, default: `'user'`, note: 'user | system | service']
-  action varchar(100) [not null, note: 'Stable action code such as report.approve or appointment.cancel.']
+  actor_type varchar(20) [not null, default: `'user'`, note: 'user | system | service | agent']
   entity_type varchar(50) [not null]
-  entity_id uuid
+  entity_id uuid [note: 'Soft reference. No FK, so the trail survives deletion of the referenced row.']
   patient_user_id uuid [note: 'Subject patient for access-history queries. NULL for non-clinical events.']
-  outcome varchar(20) [not null, default: `'success'`, note: 'success | denied | failure']
-  request_id varchar(100)
+  outcome varchar(20) [not null, default: `'success'`, note: 'success | denied | failure | blocked']
+  from_status varchar(30) [note: 'Appointment transition: previous status. NULL on the first transition. Only populated when event_type = appointment.status_changed.']
+  to_status varchar(30) [note: 'Appointment transition: new status. Non-NULL exactly when event_type = appointment.status_changed.']
+  change_source varchar(20) [note: 'patient | staff | doctor | admin | system | agent. Required on appointment transitions.']
+  change_reason varchar(500)
+  request_id varchar(100) [note: 'HTTP request correlation.']
+  session_id uuid [note: 'Session correlation for security events.']
   ip_address inet
   user_agent text
-  before_state jsonb
-  after_state jsonb
+  resolved_at timestamptz [note: 'Security investigation close time. Only writable column group after insert.']
+  resolved_by_user_id uuid
+  resolution_notes text
+  before_state jsonb [note: 'Redacted previous state. Never credentials, tokens or clinical narrative.']
+  after_state jsonb [note: 'Redacted new state. Never credentials, tokens or clinical narrative.']
   metadata jsonb [not null, default: `'{}'`]
   occurred_at timestamptz [not null, default: `now()`]
 
   indexes {
-    (patient_user_id, occurred_at) [name: 'idx_audit_logs_patient_occurred']
-    (actor_user_id, occurred_at) [name: 'idx_audit_logs_actor_occurred']
-    (entity_type, entity_id) [name: 'idx_audit_logs_entity']
+    (entity_id, occurred_at) [name: 'idx_audit_logs_appointment_timeline', note: 'Partial: WHERE event_type = appointment.status_changed.']
+    (event_category, severity, occurred_at) [name: 'idx_audit_logs_security', note: 'Partial: WHERE event_category = security. Descending occurred_at.']
+    (occurred_at) [name: 'idx_audit_logs_security_open', note: 'Partial: WHERE event_category = security AND resolved_at IS NULL.']
+    (entity_type, entity_id, occurred_at) [name: 'idx_audit_logs_entity']
+    (patient_user_id, occurred_at) [name: 'idx_audit_logs_patient', note: 'Partial: WHERE patient_user_id IS NOT NULL.']
+    (actor_user_id, occurred_at) [name: 'idx_audit_logs_actor', note: 'Partial: WHERE actor_user_id IS NOT NULL.']
+    (event_type, occurred_at) [name: 'idx_audit_logs_event_type']
     (occurred_at) [name: 'idx_audit_logs_occurred']
+    (session_id) [name: 'idx_audit_logs_session', note: 'Partial: WHERE session_id IS NOT NULL.']
+    (request_id) [name: 'idx_audit_logs_request', note: 'Partial: WHERE request_id IS NOT NULL.']
   }
 
-  Note: "PROPOSED. Append-only audit trail for clinical access, approvals, disclosures, provisioning and configuration. Never store passwords, tokens, raw audio, full clinical narratives or unredacted request bodies. before_state and after_state must be redacted. The application role should have INSERT and SELECT only, not UPDATE or DELETE. Monthly partitioning and a retention policy are PROPOSED operational steps. No cascading delete from users."
-}
-
-Table security_events {
-  id uuid [pk, default: `gen_random_uuid()`]
-  event_type varchar(60) [not null, note: 'login_failed | session_revoked | rate_limited | csrf_rejected | privilege_changed | suspicious_access | other']
-  severity varchar(20) [not null, default: `'info'`, note: 'info | warning | critical']
-  user_id uuid
-  session_id uuid
-  ip_address inet
-  user_agent text
-  outcome varchar(20) [note: 'success | failure | blocked']
-  metadata jsonb [not null, default: `'{}'`, note: 'No credentials, tokens or clinical content.']
-  occurred_at timestamptz [not null, default: `now()`]
-  resolved_at timestamptz
-  resolved_by_user_id uuid
-  resolution_notes text
-
-  indexes {
-    (event_type, occurred_at) [name: 'idx_security_events_type_occurred']
-    (severity, occurred_at) [name: 'idx_security_events_severity_occurred']
-    (user_id, occurred_at) [name: 'idx_security_events_user_occurred']
-  }
-
-  Note: "PROPOSED. Operational and security event stream for authentication, session, rate-limit, CSRF, privilege and suspicious-access signals. Append-only and separate from clinical audit_logs. CHECK (resolved_at IS NULL OR resolved_by_user_id IS NOT NULL)."
+  Note: "IMPLEMENTED (migration 004). The single append-only trail for operational, clinical, approval, provisioning and security events. Absorbs the former appointment_status_history (typed from_status/to_status/change_source/change_reason) and security_events (severity, session_id, resolved_*). CHECK constraints make an appointment transition carry to_status, change_source and an appointment entity, forbid a no-op transition, and bind the security category to the security. namespace. Trigger trg_audit_logs_append_only refuses DELETE and every UPDATE except a single resolution of a security event. Never store passwords, tokens, raw audio, full clinical narrative or unredacted request bodies. Read models: v_appointment_status_timeline and v_security_events. Monthly partitioning and a retention policy remain operational decisions."
 }
 
 // =============================================================================
@@ -1065,8 +1005,8 @@ Ref: users.id < appointments.confirmed_by_user_id [delete: set null]
 Ref: users.id < appointments.cancelled_by_user_id [delete: set null]
 Ref: appointments.id < appointments.rescheduled_from_appointment_id [delete: set null]
 
-Ref: appointments.id < appointment_status_history.appointment_id [delete: restrict]
-Ref: users.id < appointment_status_history.changed_by_user_id [delete: set null]
+// Appointment status transitions are audited in audit_logs, not in a separate
+// history table. entity_id is a soft reference, so there is no Ref here.
 
 Ref: users.id < follow_ups.patient_user_id [delete: restrict]
 Ref: users.id < follow_ups.doctor_user_id [delete: restrict]
@@ -1102,8 +1042,7 @@ Ref: transcripts.id < transcript_versions.transcript_id [delete: restrict]
 Ref: agent_executions.id < transcript_versions.generated_by_execution_id [delete: restrict]
 Ref: users.id < transcript_versions.edited_by_user_id [delete: restrict]
 
-Ref: transcript_versions.id - transcript_approvals.transcript_version_id [delete: restrict]
-Ref: users.id < transcript_approvals.decided_by_user_id [delete: restrict]
+Ref: users.id < transcript_versions.reviewed_by_user_id [delete: restrict]
 
 // --- AI executions, reports, approvals and delivery ---
 Ref: users.id < agent_executions.patient_user_id [delete: restrict]
@@ -1122,12 +1061,12 @@ Ref: transcript_versions.id < report_versions.source_transcript_version_id [dele
 Ref: agent_executions.id < report_versions.generated_by_execution_id [delete: restrict]
 Ref: users.id < report_versions.edited_by_user_id [delete: restrict]
 
-Ref: report_versions.id - report_approvals.report_version_id [delete: restrict]
-Ref: users.id < report_approvals.decided_by_user_id [delete: restrict]
+Ref: users.id < report_versions.reviewed_by_user_id [delete: restrict]
 
-Ref: report_versions.id < report_deliveries.report_version_id [delete: restrict]
-Ref: users.id < report_deliveries.patient_user_id [delete: restrict]
-Ref: users.id < report_deliveries.delivered_by_user_id [delete: set null]
+// Publication replaces the former report_deliveries table: one portal
+// publication per medical report, guarded by trg_medical_reports_publication.
+Ref: report_versions.id < medical_reports.published_version_id [delete: restrict]
+Ref: users.id < medical_reports.published_by_user_id [delete: restrict]
 
 // --- Agent 2 proposals and the longitudinal record ---
 Ref: users.id < record_update_proposals.patient_user_id [delete: restrict]
@@ -1180,8 +1119,11 @@ Ref: users.id < reference_document_versions.quality_reviewed_by_user_id [delete:
 Ref: users.id < reference_document_versions.approved_by_user_id [delete: restrict]
 Ref: users.id < reference_document_versions.created_by_user_id [delete: restrict]
 
-Ref: reference_document_versions.id < document_extraction_jobs.document_version_id [delete: restrict]
-Ref: users.id < document_extraction_jobs.created_by_user_id [delete: set null]
+// Extraction runs through agent_executions (consolidation 5): the execution
+// points at the version being read, and the version points back at the run that
+// produced its normalized text. The quality gate stays on the version.
+Ref: reference_document_versions.id < agent_executions.reference_document_version_id [delete: restrict]
+Ref: agent_executions.id < reference_document_versions.extraction_execution_id [delete: restrict]
 
 Ref: reference_document_versions.id < reference_chunks.document_version_id [delete: restrict]
 
@@ -1193,15 +1135,15 @@ Ref: reference_chunks.id < rag_citations.chunk_id [delete: restrict]
 Ref: users.id < notifications.recipient_user_id [delete: cascade]
 Ref: users.id < audit_logs.actor_user_id [delete: set null]
 Ref: users.id < audit_logs.patient_user_id [delete: set null]
-Ref: users.id < security_events.user_id [delete: set null]
-Ref: sessions.id < security_events.session_id [delete: set null]
-Ref: users.id < security_events.resolved_by_user_id [delete: restrict]
+// Security events are audit_logs rows with event_category = security.
+Ref: sessions.id < audit_logs.session_id [delete: set null]
+Ref: users.id < audit_logs.resolved_by_user_id [delete: restrict]
 
 // =============================================================================
 // TABLE GROUPS
 // =============================================================================
 
-TableGroup "Identity & Access" {
+TableGroup "Auth" {
   users
   roles
   user_roles
@@ -1210,38 +1152,34 @@ TableGroup "Identity & Access" {
   sessions
 }
 
-TableGroup "Profiles & Care Access" {
+TableGroup "Profiles" {
   patient_profiles
   doctor_profiles
   specialties
-  care_relationships
 }
 
-TableGroup "Scheduling & Follow-Up" {
+TableGroup "Scheduling" {
   clinic_locations
+  care_relationships
   doctor_availability
   doctor_time_off
   appointments
-  appointment_status_history
   follow_ups
   appointment_proposals
 }
 
-TableGroup "Consultations & Transcripts" {
+TableGroup "Consultations" {
   consultations
   consultation_consents
   consultation_recordings
   transcripts
   transcript_versions
-  transcript_approvals
 }
 
 TableGroup "AI Agents & Reports" {
   agent_executions
   medical_reports
   report_versions
-  report_approvals
-  report_deliveries
   record_update_proposals
 }
 
@@ -1254,21 +1192,19 @@ TableGroup "Medical Records" {
   test_results
 }
 
-TableGroup "Reference Knowledge (OCR & RAG)" {
+TableGroup "OCR & RAG" {
   reference_documents
   reference_document_versions
-  document_extraction_jobs
   reference_chunks
   rag_queries
   rag_citations
 }
 
-TableGroup "Operations & Audit" {
+TableGroup "Operations" {
   notifications
   audit_logs
-  security_events
 }
 
-TableGroup "Platform Infrastructure" {
+TableGroup "Infrastructure" {
   schema_migrations
 }

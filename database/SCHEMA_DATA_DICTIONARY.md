@@ -1,6 +1,18 @@
 # Medora Schema Data Dictionary
 
-**Status:** Design only. Proposed tables are not present in PostgreSQL until future migrations are approved and applied.
+> **⚠ SUPERSEDED — read this banner before using the document.**
+> This dictionary describes the original **45-table V1 design** and is kept for
+> history only. Six tables it documents no longer exist:
+> `appointment_status_history`, `security_events`, `transcript_approvals`,
+> `report_approvals`, `report_deliveries`, `document_extraction_jobs`.
+>
+> Current sources of truth:
+> - **ERD:** [`database/medora.dbml`](./medora.dbml) — 39 tables, verified against PostgreSQL
+> - **Beginner explanation:** [`database/DATABASE_ARCHITECTURE_V2.md`](./DATABASE_ARCHITECTURE_V2.md)
+>
+> Column definitions below are accurate only for the tables that survived V2.
+
+**Status (historical):** Design only. Proposed tables are not present in PostgreSQL until future migrations are approved and applied.
 **Canonical ERD:** [`database/medora.dbml`](./medora.dbml)
 **Architecture:** [`database/SCHEMA_ARCHITECTURE.md`](./SCHEMA_ARCHITECTURE.md)
 **Date:** 28 October 2026

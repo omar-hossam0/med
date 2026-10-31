@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 900" width="900" height="900" role="img" aria-label="Demo chest X-ray placeholder">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="38%" r="72%">
+      <stop offset="0" stop-color="#33465c"/>
+      <stop offset="0.55" stop-color="#152232"/>
+      <stop offset="1" stop-color="#05090e"/>
+    </radialGradient>
+    <linearGradient id="bone" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f2f6fb" stop-opacity=".95"/>
+      <stop offset="1" stop-color="#9fb2c7" stop-opacity=".55"/>
+    </linearGradient>
+    <linearGradient id="lung" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0a1019"/>
+      <stop offset="1" stop-color="#1a2838"/>
+    </linearGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="10"/></filter>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.07"/></feComponentTransfer>
+    </filter>
+  </defs>
+
+  <rect width="900" height="900" fill="url(#bg)"/>
+  <rect width="900" height="900" filter="url(#grain)" opacity=".55"/>
+
+  <!-- torso silhouette -->
+  <path d="M120 900 C130 650 215 520 300 468 C342 442 382 428 450 428 C518 428 558 442 600 468 C685 520 770 650 780 900 Z" fill="#0c141d" opacity=".88"/>
+
+  <!-- lung fields -->
+  <path d="M355 300 C268 332 222 432 238 562 C248 662 315 712 366 680 C386 630 386 520 380 430 Z" fill="url(#lung)"/>
+  <path d="M545 300 C632 332 678 432 662 562 C652 662 585 712 534 680 C514 630 514 520 520 430 Z" fill="url(#lung)"/>
+
+  <!-- ribs -->
+  <g stroke="url(#bone)" stroke-width="11" fill="none" opacity=".6" stroke-linecap="round">
+    <path d="M450 330 C360 320 290 360 270 430"/>
+    <path d="M450 380 C350 370 280 415 258 490"/>
+    <path d="M450 430 C350 425 285 475 268 550"/>
+    <path d="M450 480 C360 480 300 530 288 600"/>
+    <path d="M450 530 C375 535 325 580 318 640"/>
+    <path d="M450 330 C540 320 610 360 630 430"/>
+    <path d="M450 380 C550 370 620 415 642 490"/>
+    <path d="M450 430 C550 425 615 475 632 550"/>
+    <path d="M450 480 C540 480 600 530 612 600"/>
+    <path d="M450 530 C525 535 575 580 582 640"/>
+  </g>
+
+  <!-- clavicles -->
+  <path d="M450 310 C390 280 330 275 285 300" stroke="url(#bone)" stroke-width="17" fill="none" opacity=".82" stroke-linecap="round"/>
+  <path d="M450 310 C510 280 570 275 615 300" stroke="url(#bone)" stroke-width="17" fill="none" opacity=".82" stroke-linecap="round"/>
+
+  <!-- spine -->
+  <rect x="428" y="286" width="44" height="386" rx="16" fill="url(#bone)" opacity=".88"/>
+  <g fill="#0c141d" opacity=".32">
+    <rect x="432" y="320" width="36" height="7" rx="3"/>
+    <rect x="432" y="360" width="36" height="7" rx="3"/>
+    <rect x="432" y="400" width="36" height="7" rx="3"/>
+    <rect x="432" y="440" width="36" height="7" rx="3"/>
+    <rect x="432" y="480" width="36" height="7" rx="3"/>
+    <rect x="432" y="520" width="36" height="7" rx="3"/>
+    <rect x="432" y="560" width="36" height="7" rx="3"/>
+    <rect x="432" y="600" width="36" height="7" rx="3"/>
+  </g>
+
+  <!-- heart shadow -->
+  <ellipse cx="472" cy="505" rx="96" ry="122" fill="#131f2c" opacity=".92" filter="url(#soft)"/>
+
+  <!-- diaphragm -->
+  <path d="M250 642 C330 702 400 692 450 652 C500 692 570 702 650 642" stroke="#b9c8d8" stroke-width="9" fill="none" opacity=".22"/>
+
+  <!-- neck -->
+  <path d="M405 150 L405 300 C405 322 495 322 495 300 L495 150 Z" fill="#0b121a"/>
+  <path d="M405 150 L405 300 C405 322 495 322 495 300 L495 150" stroke="url(#bone)" stroke-width="8" fill="none" opacity=".45"/>
+
+  <!-- labels -->
+  <g opacity=".8">
+    <rect x="26" y="842" width="404" height="36" rx="6" fill="#000" opacity=".45"/>
+    <text x="42" y="866" fill="#9fb2c7" font-family="Inter, Arial, sans-serif" font-size="16" letter-spacing="1">DEMO IMAGE — NOT A CLINICAL RADIOGRAPH</text>
+  </g>
+  <g opacity=".55">
+    <text x="760" y="70" fill="#9fb2c7" font-family="Inter, Arial" font-size="17" text-anchor="end">CHEST PA</text>
+    <text x="760" y="94" fill="#6f8296" font-family="Inter, Arial" font-size="13" text-anchor="end">MEDORA DEMO SERIES</text>
+  </g>
+</svg>

@@ -26,6 +26,7 @@ import {
   type DirectoryMember,
 } from "@/lib/mock/doctorsStaff";
 import type { DirectoryTab } from "./DirectoryProvider";
+import { RevealOnScroll } from "@/components/motion/RevealOnScroll";
 import { Avatar } from "@/components/admin/ui";
 import { SelectField } from "@/components/ui/SelectField";
 import { useComingSoon } from "@/components/admin/ComingSoon";
@@ -119,7 +120,12 @@ export function DoctorsStaffDirectory() {
       </div>
 
       {/* 4 Horizontally Aligned Statistics Cards (Reference Image 1) */}
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <RevealOnScroll
+        as="section"
+        stagger={50}
+        y={14}
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"
+      >
         <StatCard
           label="Total Doctors"
           caption="Medical professionals"
@@ -148,10 +154,13 @@ export function DoctorsStaffDirectory() {
           icon={CalendarCheck}
           tone="mint"
         />
-      </section>
+      </RevealOnScroll>
 
       {/* Main Directory & Right Filters Column */}
-      <div className="grid grid-cols-1 items-start gap-3.5 xl:grid-cols-[minmax(0,1fr)_224px]">
+      <RevealOnScroll
+        y={16}
+        className="grid grid-cols-1 items-start gap-3.5 xl:grid-cols-[minmax(0,1fr)_224px]"
+      >
         {/* Large White Directory Container */}
         <section className="min-w-0 rounded-2xl border border-[#E5ECEC] bg-white shadow-soft">
           {/* Tabs + Add Doctor / Staff Button Header Bar (Reference Image 1) */}
@@ -450,7 +459,7 @@ export function DoctorsStaffDirectory() {
 
         {/* Right-Side Filters Panel (Reference Image 1) */}
         <FiltersPanel />
-      </div>
+      </RevealOnScroll>
     </div>
   );
 }

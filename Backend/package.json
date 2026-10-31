@@ -9,8 +9,10 @@
     "db:test": "node test-db.js",
     "db:migrate": "node scripts/migrate.js",
     "db:baseline": "node scripts/baseline.js",
+    "db:validate": "node scripts/validate-dbml.js",
     "bootstrap:admin": "node scripts/bootstrap-admin.js",
-    "test": "node tests/auth.test.js"
+    "test": "node tests/auth.test.js",
+    "test:schema": "node tests/schema-v2.test.js"
   },
   "keywords": [],
   "author": "",

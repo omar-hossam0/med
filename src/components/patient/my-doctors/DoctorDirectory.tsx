@@ -29,6 +29,7 @@ import {
   type Doctor,
 } from "@/lib/mock/doctors";
 import { DoctorCard } from "./DoctorCard";
+import { RevealOnScroll } from "@/components/motion/RevealOnScroll";
 import { cn } from "@/lib/cn";
 
 const DEPARTMENT_ICONS: Record<Department["icon"], LucideIcon> = {
@@ -464,7 +465,11 @@ function DoctorGroup({
         )}
       </div>
 
-      <div className="mt-2.5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <RevealOnScroll
+        stagger={50}
+        y={14}
+        className="mt-2.5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3"
+      >
         {groupDoctors.map((doctor) => (
           <DoctorCard
             key={doctor.id}
@@ -474,7 +479,7 @@ function DoctorGroup({
             onView={() => onViewDoctor(doctor.id)}
           />
         ))}
-      </div>
+      </RevealOnScroll>
     </div>
   );
 }

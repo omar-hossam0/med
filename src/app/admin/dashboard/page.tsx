@@ -15,6 +15,7 @@ import {
   QuickActionsPanel,
   SystemHealthPanel,
 } from "@/components/admin/AdminRightColumn";
+import { RevealOnScroll } from "@/components/motion/RevealOnScroll";
 
 export const metadata: Metadata = {
   title: "Admin Overview — Medora",
@@ -29,23 +30,29 @@ export default function AdminDashboardPage() {
       <div className="min-w-0 space-y-3">
         <AdminHero />
         <AdminKpiRow />
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+        <RevealOnScroll
+          stagger={50}
+          className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]"
+        >
           <AppointmentsTrendCard />
           <DepartmentDonutCard />
-        </div>
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+        </RevealOnScroll>
+        <RevealOnScroll
+          stagger={50}
+          className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]"
+        >
           <RecentAppointmentsTable />
           <RecentUsersTable />
-        </div>
+        </RevealOnScroll>
       </div>
 
       {/* Right utility column */}
-      <div className="space-y-3">
+      <RevealOnScroll stagger={50} className="space-y-3">
         <DateQuotePanel />
         <NotificationsPanel />
         <QuickActionsPanel />
         <SystemHealthPanel />
-      </div>
+      </RevealOnScroll>
     </div>
   );
 }

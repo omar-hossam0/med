@@ -26,6 +26,7 @@ import {
 import { Avatar, Sparkline } from "@/components/admin/ui";
 import { useComingSoon } from "@/components/admin/ComingSoon";
 import { useUsers } from "./UsersProvider";
+import { RevealOnScroll } from "@/components/motion/RevealOnScroll";
 import { cn } from "@/lib/cn";
 
 const PAGE_SIZE = 8;
@@ -154,15 +155,20 @@ export function UsersManagement() {
       </div>
 
       {/* Stat cards */}
-      <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      <RevealOnScroll
+        as="section"
+        stagger={50}
+        y={14}
+        className="grid grid-cols-2 gap-3 xl:grid-cols-4"
+      >
         <StatCard label="Total Users" value={stats.total} icon={Users} tone="teal" trend="+12%" spark={[6, 8, 7, 9, 8, 10, 9, 11]} />
         <StatCard label="Patients" value={stats.patients} icon={UserRound} tone="blue" trend="+14%" spark={[5, 7, 6, 8, 9, 8, 10, 11]} />
         <StatCard label="Doctors" value={stats.doctors} icon={Stethoscope} tone="violet" trend="+8%" spark={[4, 5, 5, 6, 5, 7, 6, 7]} />
         <StatCard label="Staff" value={stats.staff} icon={Users} tone="amber" trend="+6%" spark={[3, 4, 4, 5, 4, 6, 5, 6]} />
-      </section>
+      </RevealOnScroll>
 
       {/* Toolbar */}
-      <section className="rounded-2xl border border-line bg-white p-2.5">
+      <RevealOnScroll as="section" y={14} className="rounded-2xl border border-line bg-white p-2.5">
         <div className="flex flex-wrap items-center gap-2">
           {/* Tabs */}
           <div className="flex flex-wrap items-center gap-1">
@@ -277,10 +283,10 @@ export function UsersManagement() {
             </div>
           </div>
         </div>
-      </section>
+      </RevealOnScroll>
 
       {/* Table */}
-      <section className="rounded-2xl border border-line bg-white">
+      <RevealOnScroll as="section" y={14} className="rounded-2xl border border-line bg-white">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[860px] text-left">
             <thead>
@@ -403,7 +409,7 @@ export function UsersManagement() {
             </button>
           </div>
         </div>
-      </section>
+      </RevealOnScroll>
 
       {/* Row actions menu (fixed so it is never clipped by the table scroll) */}
       {menu && (

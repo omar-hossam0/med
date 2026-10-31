@@ -18,6 +18,7 @@ import { DepartmentsToast } from "@/components/admin/departments/DepartmentsToas
 import { EditDepartmentModal } from "@/components/admin/departments/EditDepartmentModal";
 import { ManageDoctorsModal } from "@/components/admin/departments/ManageDoctorsModal";
 import { ManageServicesModal } from "@/components/admin/departments/ManageServicesModal";
+import { RevealOnScroll } from "@/components/motion/RevealOnScroll";
 import { cn } from "@/lib/cn";
 
 export default function DepartmentsPage() {
@@ -79,14 +80,14 @@ function DepartmentsContent() {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <RevealOnScroll stagger={50} y={14} className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <SummaryCard label="Total Departments" value={stats.totalDepartments} icon={Building2} tone="teal" />
         <SummaryCard label="Active Departments" value={stats.activeDepartments} icon={SlidersHorizontal} tone="green" />
         <SummaryCard label="Assigned Doctors" value={stats.assignedDoctors} icon={Users} tone="blue" />
         <SummaryCard label="Appointments" value={stats.totalAppointments} icon={CalendarDays} tone="violet" />
-      </div>
+      </RevealOnScroll>
 
-      <section className="rounded-2xl border border-line bg-white p-4 shadow-soft">
+      <RevealOnScroll as="section" y={14} className="rounded-2xl border border-line bg-white p-4 shadow-soft">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-center gap-1 rounded-xl bg-[#F3F8F8] p-1">
             {[
@@ -207,7 +208,7 @@ function DepartmentsContent() {
             </button>
           </div>
         )}
-      </section>
+      </RevealOnScroll>
 
       <AddDepartmentModal open={isAddModalOpen} onClose={closeAddModal} />
       <EditDepartmentModal department={editingDept} onClose={closeEditModal} />
