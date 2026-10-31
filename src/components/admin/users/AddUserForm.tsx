@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -24,10 +23,9 @@ import {
   Building2,
   MapPin,
   Clock,
+  X,
 } from "lucide-react";
 import {
-  SPECIALTIES,
-  DEPARTMENTS,
   STAFF_TITLES,
   DOCTOR_PERMISSIONS,
   STAFF_PERMISSIONS,
@@ -39,6 +37,8 @@ import { PhotoUpload } from "./PhotoUpload";
 import { stepMotion } from "@/components/transitions/stepper";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { useUsers } from "./UsersProvider";
+import { useReferenceData } from "@/components/admin/ReferenceDataProvider";
+import { ApiError } from "@/lib/api/admin";
 import { cn } from "@/lib/cn";
 
 const STEPS = ["Basic Information", "Role & Details", "Permissions", "Review & Create"];
@@ -64,7 +64,6 @@ const areaCls =
   "min-h-[56px] w-full resize-none rounded-xl border border-line bg-white py-2 pl-9 pr-3 text-[12.5px] text-navy outline-none transition placeholder:text-ink-muted focus:border-primary focus:ring-4 focus:ring-primary/10";
 
 export function AddUserForm() {
-  const router = useRouter();
   const { users, addUser } = useUsers();
 
   const [step, setStep] = useState(0);
@@ -119,6 +118,27 @@ export function AddUserForm() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [activationPath, setActivationPath] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  // Vocabularies come from PostgreSQL, so a select can never offer a value the
+  // API will reject.
+  const { specialties, departments, clinicalDepartments, locations } = useReferenceData();
+
+  const selectedSpecialty = specialties.find((item) => item.name === specialty);
+  const doctorDepartmentOptions = selectedSpecialty
+    ? clinicalDepartments.filter((item) => item.specialty_id === selectedSpecialty.id)
+    : clinicalDepartments;
+
+  const handleSpecialtyChange = (name: string) => {
+    setSpecialty(name);
+    const match = specialties.find((item) => item.name === name);
+    const derived = match
+      ? clinicalDepartments.find((item) => item.specialty_id === match.id)
+      : null;
+    setDepartment(derived ? derived.name : "");
+  };
 
   const roleLabel = ROLE_LABEL[type];
   const rolePerms = type === "doctor" ? DOCTOR_PERMISSIONS : STAFF_PERMISSIONS;
@@ -192,39 +212,51 @@ export function AddUserForm() {
     setConfirmOpen(true);
   };
 
-  const confirmCreate = () => {
+  const confirmCreate = async () => {
     if (submitting) return;
     setSubmitting(true);
+    setCreateError(null);
     if (photoUrlRef.current) photoHandedOffRef.current = true; // transfer URL ownership
-    addUser({
-      name: fullName,
-      email,
-      phone,
-      role: type,
-      profile:
-        type === "doctor"
-          ? {
-              dob,
-              specialty,
-              department,
-              license,
-              years,
-              location,
-              photoUrl: photoUrl ?? undefined,
-            }
-          : {
-              dob,
-              jobTitle,
-              employmentId,
-              department,
-              location,
-              schedule,
-              about: notes || undefined,
-            },
-    });
-    setConfirmOpen(false);
-    setSuccess(true);
-    window.setTimeout(() => router.push("/admin/users"), 1100);
+
+    try {
+      const created = await addUser({
+        name: fullName,
+        email,
+        phone,
+        role: type,
+        profile:
+          type === "doctor"
+            ? {
+                dob,
+                specialty,
+                department,
+                license,
+                years,
+                location,
+                photoUrl: photoUrl ?? undefined,
+              }
+            : {
+                dob,
+                jobTitle,
+                employmentId,
+                department,
+                location,
+                schedule,
+                about: notes || undefined,
+              },
+      });
+
+      setConfirmOpen(false);
+      setActivationPath(created.activationPath);
+      setSuccess(true);
+    } catch (err) {
+      // The row is only reported as created when the database accepted it.
+      setCreateError(
+        err instanceof ApiError ? err.message : "Could not create the account.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const permissionLabels = rolePerms.filter((p) => permissions.has(p.id)).map((p) => p.label);
@@ -423,7 +455,7 @@ export function AddUserForm() {
                             value={department}
                             onChange={setDepartment}
                             error={errors.department}
-                            options={DEPARTMENTS.map((d) => ({ value: d, label: d }))}
+                            options={doctorDepartmentOptions.map((d) => ({ value: d.name, label: d.name }))}
                             icon={Building2}
                             iconClassName={VIOLET}
                             height={40}
@@ -440,18 +472,26 @@ export function AddUserForm() {
                             label="Specialty"
                             placeholder="Select specialty"
                             value={specialty}
-                            onChange={setSpecialty}
+                            onChange={handleSpecialtyChange}
                             error={errors.specialty}
-                            options={SPECIALTIES.map((s) => ({ value: s, label: s }))}
+                            options={specialties.map((s) => ({ value: s.name, label: s.name }))}
                             icon={Stethoscope}
                             iconClassName={TEAL}
                             height={40}
                           />
                         </Field>
                         <Field id="nu-loc" label="Work Location / Clinic">
-                          <IconInput icon={MapPin} iconClassName={BLUE}>
-                            <input id="nu-loc" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Select work location" className={inputCls()} />
-                          </IconInput>
+                          <SelectField
+                            id="nu-loc"
+                            label="Work Location"
+                            placeholder="Select work location"
+                            value={location}
+                            onChange={setLocation}
+                            options={locations.map((l) => ({ value: l.name, label: l.name }))}
+                            icon={MapPin}
+                            iconClassName={BLUE}
+                            height={40}
+                          />
                         </Field>
                         <Field id="nu-years" label="Years of Experience">
                           <IconInput icon={Briefcase} iconClassName={TEAL}>
@@ -469,16 +509,24 @@ export function AddUserForm() {
                             value={department}
                             onChange={setDepartment}
                             error={errors.department}
-                            options={DEPARTMENTS.map((d) => ({ value: d, label: d }))}
+                            options={departments.map((d) => ({ value: d.name, label: d.name }))}
                             icon={Building2}
                             iconClassName={VIOLET}
                             height={40}
                           />
                         </Field>
                         <Field id="nu-loc" label="Work Location">
-                          <IconInput icon={MapPin} iconClassName={BLUE}>
-                            <input id="nu-loc" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. Front Desk" className={inputCls()} />
-                          </IconInput>
+                          <SelectField
+                            id="nu-loc"
+                            label="Work Location"
+                            placeholder="Select work location"
+                            value={location}
+                            onChange={setLocation}
+                            options={locations.map((l) => ({ value: l.name, label: l.name }))}
+                            icon={MapPin}
+                            iconClassName={BLUE}
+                            height={40}
+                          />
                         </Field>
                         <div className="sm:col-span-2">
                           <Field id="nu-schedule" label="Work Schedule">
@@ -600,7 +648,8 @@ export function AddUserForm() {
                   </ReviewSection>
                   <div className="flex items-start gap-2 rounded-xl bg-[#EEF4FF] px-3 py-2 text-[10.5px] leading-relaxed text-[#3D4A63]">
                     <Info size={14} className="mt-0.5 shrink-0" />
-                    The new user will receive an invitation to set their password when email invitations are connected.
+                    The account is created as pending activation. Share the one-time link shown
+                    after creation so the user can set a password.
                   </div>
                 </div>
               )}
@@ -669,7 +718,8 @@ export function AddUserForm() {
 
             <div className="mt-4 flex items-start gap-2 rounded-lg bg-[#EEF4FF] px-2.5 py-2 text-[9.5px] leading-relaxed text-[#3D4A63]">
               <Info size={13} className="mt-0.5 shrink-0 text-[#3B6EF6]" />
-              An invitation email will be sent to the user with a link to set their password.
+              Activation uses a one-time link. Email delivery is not configured yet, so share the
+              link directly.
             </div>
           </div>
 
@@ -692,15 +742,67 @@ export function AddUserForm() {
         submitting={submitting}
       />
 
+      {createError && (
+        <div className="fixed bottom-6 left-1/2 z-[90] w-[min(92vw,460px)] -translate-x-1/2 rounded-xl border border-[#E5484D]/30 bg-white px-4 py-3 shadow-pop">
+          <div className="flex items-start gap-2.5">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#FDECEF] text-[#E5484D]">
+              <Info size={16} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11.5px] font-semibold text-[#0F2D4A]">Account not created</p>
+              <p className="mt-0.5 text-[10px] leading-relaxed text-[#5B6B7C]">{createError}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCreateError(null)}
+              aria-label="Dismiss"
+              className="text-[#9AA9B8] transition hover:text-navy"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {success && (
-        <div className="fixed bottom-6 left-1/2 z-[90] -translate-x-1/2 rounded-xl border border-[#0A9189]/30 bg-white px-4 py-3 shadow-pop">
-          <div className="flex items-center gap-2.5">
+        <div className="fixed bottom-6 left-1/2 z-[90] w-[min(92vw,520px)] -translate-x-1/2 rounded-xl border border-[#0A9189]/30 bg-white p-4 shadow-pop">
+          <div className="flex items-start gap-2.5">
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#E6FAF7] text-[#0A9189]">
               <Check size={16} />
             </span>
-            <div>
-              <p className="text-[11.5px] font-semibold text-[#0F2D4A]">Demo user added successfully</p>
-              <p className="text-[9.5px] text-[#5B6B7C]">Added to the local demo list. No database record or email was created.</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11.5px] font-semibold text-[#0F2D4A]">
+                Account created — pending activation
+              </p>
+              <p className="mt-0.5 text-[9.5px] leading-relaxed text-[#5B6B7C]">
+                The record is saved. Share this one-time link so the user can set a password. It
+                cannot be shown again.
+              </p>
+              {activationPath && (
+                <div className="mt-2 flex items-center gap-2">
+                  <code className="min-w-0 flex-1 truncate rounded-lg bg-[#F6FAFB] px-2 py-1.5 text-[10px] text-[#0F2D4A]">
+                    {activationPath}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void navigator.clipboard?.writeText(
+                        `${window.location.origin}${activationPath}`,
+                      );
+                      setCopied(true);
+                    }}
+                    className="inline-flex h-7 shrink-0 items-center rounded-lg border border-line px-2 text-[10px] font-semibold text-[#0F2D4A] transition hover:bg-surface-subtle"
+                  >
+                    {copied ? "Copied" : "Copy link"}
+                  </button>
+                </div>
+              )}
+              <Link
+                href="/admin/users"
+                className="mt-2 inline-block text-[10.5px] font-semibold text-[#0A9189] hover:underline"
+              >
+                Go to Users
+              </Link>
             </div>
           </div>
         </div>

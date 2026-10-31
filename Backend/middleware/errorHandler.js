@@ -24,6 +24,12 @@ function errorHandler(err, req, res, next) {
       : "An unexpected error occurred. Please try again later.",
   };
 
+  // Stable machine-readable code for deliberate errors, so clients never have
+  // to match on English text.
+  if (err.code && typeof err.code === "string") {
+    response.code = err.code;
+  }
+
   // Optional validation errors array
   if (err.errors && Array.isArray(err.errors)) {
     response.errors = err.errors;

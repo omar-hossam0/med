@@ -20,6 +20,7 @@ import {
   ROLE_LABEL,
   STATUS_LABEL,
   formatJoined,
+  type DemoUser,
   type UserRole,
   type UserStatus,
 } from "@/lib/mock/users";
@@ -27,6 +28,7 @@ import { Avatar, Sparkline } from "@/components/admin/ui";
 import { useComingSoon } from "@/components/admin/ComingSoon";
 import { useUsers } from "./UsersProvider";
 import { RevealOnScroll } from "@/components/motion/RevealOnScroll";
+import { ChangeStatusDialog } from "./ChangeStatusDialog";
 import { cn } from "@/lib/cn";
 
 const PAGE_SIZE = 8;
@@ -54,8 +56,10 @@ const STATUS_TEXT: Record<UserStatus, string> = {
 type Tab = "all" | UserRole;
 
 export function UsersManagement() {
-  const { users, stats } = useUsers();
+  const { users, stats, loading, error, refresh } = useUsers();
   const comingSoon = useComingSoon();
+
+  const [statusTarget, setStatusTarget] = useState<DemoUser | null>(null);
 
   const [tab, setTab] = useState<Tab>("all");
   const [search, setSearch] = useState("");
@@ -142,7 +146,6 @@ export function UsersManagement() {
           <h1 className="text-[20px] font-bold tracking-[-0.01em] text-[#0F2D4A]">Users Management</h1>
           <p className="mt-0.5 text-[12px] text-[#5B6B7C]">
             Manage all patients, doctors, and staff accounts.
-            <span className="ml-2 rounded-full bg-[#E6FAF7] px-2 py-0.5 text-[9.5px] font-semibold text-[#0A9189]">Demo data</span>
           </p>
         </div>
         <Link
@@ -166,6 +169,13 @@ export function UsersManagement() {
         <StatCard label="Doctors" value={stats.doctors} icon={Stethoscope} tone="violet" trend="+8%" spark={[4, 5, 5, 6, 5, 7, 6, 7]} />
         <StatCard label="Staff" value={stats.staff} icon={Users} tone="amber" trend="+6%" spark={[3, 4, 4, 5, 4, 6, 5, 6]} />
       </RevealOnScroll>
+
+      {/* Load failure is surfaced instead of falling back to sample rows */}
+      {error && (
+        <div className="rounded-xl border border-[#E5484D]/30 bg-[#FDECEF] px-3 py-2 text-[11.5px] text-[#B42318]">
+          {error}
+        </div>
+      )}
 
       {/* Toolbar */}
       <RevealOnScroll as="section" y={14} className="rounded-2xl border border-line bg-white p-2.5">
@@ -312,7 +322,7 @@ export function UsersManagement() {
               {paged.length === 0 && (
                 <tr>
                   <td colSpan={9} className="px-4 py-10 text-center text-[12px] text-[#7A8B9C]">
-                    No users match your search or filters.
+                    {loading ? "Loading users…" : "No users match your search or filters."}
                   </td>
                 </tr>
               )}
@@ -429,7 +439,12 @@ export function UsersManagement() {
                 type="button"
                 role="menuitem"
                 onClick={() => {
+                  const target = users.find((u) => u.id === menu.id) ?? null;
                   setMenu(null);
+                  if (label === "Change Status" && target) {
+                    setStatusTarget(target);
+                    return;
+                  }
                   comingSoon(label);
                 }}
                 className="block w-full px-3 py-1.5 text-left text-[11.5px] text-[#5B6B7C] transition hover:bg-surface-subtle"
@@ -440,6 +455,14 @@ export function UsersManagement() {
           </div>
         </>
       )}
+
+      <ChangeStatusDialog
+        user={statusTarget}
+        onClose={() => setStatusTarget(null)}
+        onUpdated={() => {
+          void refresh();
+        }}
+      />
     </div>
   );
 }

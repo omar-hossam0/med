@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
-import { ArrowLeft, Pencil, Briefcase, Stethoscope, BadgeCheck, User, Mail, Phone, CalendarDays, Building2, MapPin, Clock } from "lucide-react";
+import { ArrowLeft, Pencil, Briefcase, Stethoscope, BadgeCheck, User, Mail, Phone, CalendarDays, Building2, MapPin, Clock, X } from "lucide-react";
 import {
   ACCOUNT_STATUS_LABEL,
   DUTY_LABEL,
@@ -11,6 +11,8 @@ import {
 } from "@/lib/mock/doctorsStaff";
 import { DOCTOR_PERMISSIONS, STAFF_PERMISSIONS } from "@/lib/mock/users";
 import { useComingSoon } from "@/components/admin/ComingSoon";
+import { adminApi, ApiError } from "@/lib/api/admin";
+import { OneTimeLinkDialog } from "@/components/admin/OneTimeLinkDialog";
 import { tabMotion } from "@/components/transitions/tabs";
 import {
   AccountPill,
@@ -36,10 +38,70 @@ import { cn } from "@/lib/cn";
 
 type TabKey = "overview" | "details" | "schedule" | "account" | "activity";
 
-export function MemberDetails({ member }: { member: DirectoryMember }) {
+export function MemberDetails({
+  member,
+  onUpdated,
+}: {
+  member: DirectoryMember;
+  onUpdated?: (member: DirectoryMember) => void;
+}) {
   const comingSoon = useComingSoon();
   const reduce = useReducedMotion();
   const [tab, setTab] = useState<TabKey>("overview");
+
+  const [invite, setInvite] = useState<{
+    title: string;
+    description: string;
+    path: string;
+  } | null>(null);
+  const [inviteBusy, setInviteBusy] = useState<string | null>(null);
+  const [verifyBusy, setVerifyBusy] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  async function handleInvite(purpose: "invite" | "password_reset") {
+    setInviteBusy(purpose);
+    setActionError(null);
+
+    try {
+      const result = await adminApi.issueInvitation(member.id, purpose);
+      setInvite({
+        title:
+          purpose === "invite"
+            ? "Activation link issued"
+            : "Password reset link issued",
+        description: `Share this one-time link with ${member.name}.`,
+        path: result.invitation.activation_path,
+      });
+    } catch (err) {
+      setActionError(
+        err instanceof ApiError ? err.message : "Could not issue the link.",
+      );
+    } finally {
+      setInviteBusy(null);
+    }
+  }
+
+  async function handleVerify(status: "verified" | "rejected") {
+    setVerifyBusy(status);
+    setActionError(null);
+
+    try {
+      const result = await adminApi.setVerification(member.id, { status });
+      onUpdated?.(result.member);
+    } catch (err) {
+      setActionError(
+        err instanceof ApiError ? err.message : "Could not update verification.",
+      );
+    } finally {
+      setVerifyBusy(null);
+    }
+  }
+
+  function handleAction(label: string) {
+    if (label === "Reset Password") void handleInvite("password_reset");
+    else if (label === "Resend Invitation Email") void handleInvite("invite");
+    else comingSoon(label);
+  }
 
   const tabs: { key: TabKey; label: string }[] = isDoctor(member)
     ? [
@@ -96,7 +158,7 @@ export function MemberDetails({ member }: { member: DirectoryMember }) {
               <Pencil size={13} />
               Edit Details
             </button>
-            <HeaderMenu member={member} />
+            <HeaderMenu member={member} onAction={handleAction} />
           </div>
         </div>
 
@@ -147,6 +209,26 @@ export function MemberDetails({ member }: { member: DirectoryMember }) {
                     ? "Credential review is in progress. Clinical access stays limited until verification completes."
                     : "Credentials were not approved. Clinical access remains disabled."
               }
+              actions={
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => void handleVerify("verified")}
+                    disabled={verifyBusy !== null || member.verification === "verified"}
+                    className="inline-flex h-7 items-center rounded-lg bg-[#E6FAF7] px-2.5 text-[10.5px] font-semibold text-[#0A9189] transition hover:bg-[#D5F5EF] disabled:opacity-50"
+                  >
+                    {verifyBusy === "verified" ? "Verifying…" : "Verify licence"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleVerify("rejected")}
+                    disabled={verifyBusy !== null || member.verification === "rejected"}
+                    className="inline-flex h-7 items-center rounded-lg border border-[#E5484D]/30 px-2.5 text-[10.5px] font-semibold text-[#B42318] transition hover:bg-[#FDECEF] disabled:opacity-50"
+                  >
+                    {verifyBusy === "rejected" ? "Rejecting…" : "Reject"}
+                  </button>
+                </div>
+              }
             />
           )}
           <StatusCard
@@ -164,11 +246,38 @@ export function MemberDetails({ member }: { member: DirectoryMember }) {
                     : "The account is suspended pending administrative review."
             }
           />
-          <QuickActionsCard />
+          <QuickActionsCard onAction={handleAction} />
           <WorkLocationCard member={member} />
           <NextShiftCard member={member} />
         </div>
       </div>
+
+      <OneTimeLinkDialog
+        open={invite !== null}
+        title={invite?.title ?? ""}
+        description={invite?.description}
+        path={invite?.path ?? null}
+        onClose={() => setInvite(null)}
+      />
+
+      {actionError && (
+        <div className="fixed bottom-6 left-1/2 z-[90] w-[min(92vw,460px)] -translate-x-1/2 rounded-xl border border-[#E5484D]/30 bg-white px-4 py-3 shadow-pop">
+          <div className="flex items-start gap-2.5">
+            <div className="min-w-0 flex-1">
+              <p className="text-[11.5px] font-semibold text-[#0F2D4A]">Action not completed</p>
+              <p className="mt-0.5 text-[10px] leading-relaxed text-[#5B6B7C]">{actionError}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActionError(null)}
+              aria-label="Dismiss"
+              className="text-[#9AA9B8] transition hover:text-navy"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -308,7 +417,7 @@ function ScheduleTab({ member }: { member: DirectoryMember }) {
       <DetailCard title="Duty Status">
         <p className={cn("text-[12px] font-semibold", dutyTone(member.duty))}>{DUTY_LABEL[member.duty]}</p>
         <p className="mt-1 text-[10.5px] text-[#7A8B9C]">
-          Mock duty state for the demo dataset — not a live schedule.
+          Duty status is not derived from a schedule yet.
         </p>
       </DetailCard>
     </>
@@ -347,7 +456,7 @@ function AccountTab({ member }: { member: DirectoryMember }) {
           ))}
         </ul>
         <p className="mt-3 rounded-lg bg-[#F6FAFB] px-3 py-2 text-[10px] text-[#7A8B9C]">
-          Frontend-only preview. Permissions are not enforced until the backend RBAC is implemented.
+          Role and permission enforcement for clinical actions is not implemented yet.
         </p>
       </DetailCard>
     </>
@@ -374,8 +483,8 @@ function ActivityTab({ member }: { member: DirectoryMember }) {
         ))}
       </ul>
       <p className="mt-3 rounded-lg bg-[#F6FAFB] px-3 py-2 text-[10px] leading-relaxed text-[#7A8B9C]">
-        Demo entries only for {member.name}. Real administrative and access events will be recorded in the
-        audit log once the backend is implemented.
+        Administrative changes to {member.name} are recorded in the audit log. This view does not
+        read it yet.
       </p>
     </DetailCard>
   );

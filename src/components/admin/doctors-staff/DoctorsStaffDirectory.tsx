@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Plus,
@@ -17,9 +17,7 @@ import {
   Pencil,
 } from "lucide-react";
 import {
-  mergeMembers,
   directoryStats,
-  DS_DEPARTMENTS,
   VERIFICATION_LABEL,
   ACCOUNT_STATUS_LABEL,
   DUTY_LABEL,
@@ -30,7 +28,8 @@ import { RevealOnScroll } from "@/components/motion/RevealOnScroll";
 import { Avatar } from "@/components/admin/ui";
 import { SelectField } from "@/components/ui/SelectField";
 import { useComingSoon } from "@/components/admin/ComingSoon";
-import { useUsers } from "@/components/admin/users/UsersProvider";
+import { useReferenceData } from "@/components/admin/ReferenceDataProvider";
+import { adminApi, ApiError } from "@/lib/api/admin";
 import { useDirectory } from "./DirectoryProvider";
 import { MemberCard, memberDetailHref } from "./MemberCard";
 import { FiltersPanel } from "./FiltersPanel";
@@ -45,11 +44,42 @@ const TABS: { key: DirectoryTab; label: string }[] = [
 ];
 
 export function DoctorsStaffDirectory() {
-  const { users } = useUsers();
   const comingSoon = useComingSoon();
+  const { departments } = useReferenceData();
   const { tab, setTab, view, setView, filters, setFilter, page, setPage } = useDirectory();
 
-  const members = useMemo(() => mergeMembers(users), [users]);
+  const [members, setMembers] = useState<DirectoryMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Source of truth is the database. There is no seeded fallback: an empty
+  // directory means the clinic has not provisioned anyone yet.
+  useEffect(() => {
+    let active = true;
+
+    adminApi
+      .listDirectory()
+      .then((data) => {
+        if (!active) return;
+        setMembers(data.members);
+        setLoadError(null);
+      })
+      .catch((err) => {
+        if (!active) return;
+        setMembers([]);
+        setLoadError(
+          err instanceof ApiError ? err.message : "Could not load the directory.",
+        );
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const stats = useMemo(() => directoryStats(members), [members]);
 
   const tabCount = (key: DirectoryTab) =>
@@ -234,7 +264,7 @@ export function DoctorsStaffDirectory() {
                 placeholder="All Departments"
                 value={filters.department}
                 onChange={(v) => setFilter("department", v)}
-                options={["All Departments", ...DS_DEPARTMENTS].map((o) => ({
+                options={["All Departments", ...departments.map((d) => d.name)].map((o) => ({
                   value: o,
                   label: o,
                 }))}
@@ -309,11 +339,27 @@ export function DoctorsStaffDirectory() {
           </div>
 
           {/* Member Content: Grid Mode (Reference Image 1: 4 columns x 2 rows = 8 cards) */}
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="mx-4 mb-4 rounded-xl border border-dashed border-line bg-[#FAFDFD] px-4 py-12 text-center">
+              <p className="text-[12.5px] font-medium text-[#0F2D4A]">Loading members…</p>
+              <p className="mt-1 text-[11px] text-[#7A8B9C]">
+                Reading the clinic directory from the database.
+              </p>
+            </div>
+          ) : loadError ? (
+            <div className="mx-4 mb-4 rounded-xl border border-[#E5484D]/30 bg-[#FDECEF] px-4 py-10 text-center">
+              <p className="text-[12.5px] font-semibold text-[#B42318]">
+                Could not load the directory
+              </p>
+              <p className="mt-1 text-[11px] text-[#B42318]/80">{loadError}</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="mx-4 mb-4 rounded-xl border border-dashed border-line bg-[#FAFDFD] px-4 py-12 text-center">
               <p className="text-[12.5px] font-medium text-[#0F2D4A]">No members match your filters</p>
               <p className="mt-1 text-[11px] text-[#7A8B9C]">
-                Try adjusting your search query or clearing the selected filters.
+                {members.length === 0
+                  ? "No doctors or staff have been added yet."
+                  : "Try adjusting your search query or clearing the selected filters."}
               </p>
             </div>
           ) : view === "grid" ? (

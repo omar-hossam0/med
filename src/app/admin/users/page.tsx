@@ -3,7 +3,7 @@ import { UsersManagement } from "@/components/admin/users/UsersManagement";
 
 export const metadata: Metadata = {
   title: "Users Management — Medora",
-  description: "Manage and monitor patient, doctor, and staff accounts (demo data).",
+  description: "Manage and monitor patient, doctor, and staff accounts.",
 };
 
 export default function UsersPage() {

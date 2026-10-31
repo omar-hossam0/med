@@ -167,12 +167,14 @@ export function StatusCard({
   note,
   icon: Icon,
   tone = "teal",
+  actions,
 }: {
   title: string;
   pill: React.ReactNode;
   note: string;
   icon: LucideIcon;
   tone?: keyof typeof ROW_TONES;
+  actions?: React.ReactNode;
 }) {
   const t = ROW_TONES[tone];
   return (
@@ -185,13 +187,18 @@ export function StatusCard({
       </div>
       <div className="mt-2.5">{pill}</div>
       <p className="mt-2 text-[10px] leading-relaxed text-[#7A8B9C]">{note}</p>
+      {actions && <div className="mt-2.5">{actions}</div>}
     </section>
   );
 }
 
 /* ---------------- right panel cards ---------------- */
 
-export function QuickActionsCard() {
+export function QuickActionsCard({
+  onAction,
+}: {
+  onAction?: (label: string) => void;
+}) {
   const comingSoon = useComingSoon();
   const actions = [
     { label: "View Schedule", icon: CalendarClock },
@@ -206,7 +213,7 @@ export function QuickActionsCard() {
           <button
             key={a.label}
             type="button"
-            onClick={() => comingSoon(a.label)}
+            onClick={() => (onAction ? onAction(a.label) : comingSoon(a.label))}
             className="flex w-full items-center gap-2 rounded-lg border border-line px-2.5 py-2 text-left text-[11px] font-medium text-[#5B6B7C] transition hover:border-[#0A9189]/30 hover:bg-[#F4FCFA] hover:text-[#0F2D4A]"
           >
             <a.icon size={13} className="text-[#0A9189]" />
@@ -215,7 +222,7 @@ export function QuickActionsCard() {
         ))}
       </div>
       <p className="mt-2.5 text-[9.5px] leading-relaxed text-[#9AA9B8]">
-        Demo only — these actions are not connected to a backend yet.
+        Password resets and invitations are recorded in the audit log.
       </p>
     </section>
   );
@@ -351,7 +358,13 @@ export function HeaderBadge({
   );
 }
 
-export function HeaderMenu({ member }: { member: DirectoryMember }) {
+export function HeaderMenu({
+  member,
+  onAction,
+}: {
+  member: DirectoryMember;
+  onAction?: (label: string) => void;
+}) {
   const comingSoon = useComingSoon();
   const ref = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
@@ -374,7 +387,8 @@ export function HeaderMenu({ member }: { member: DirectoryMember }) {
             type="button"
             onClick={() => {
               setOpen(false);
-              comingSoon(label);
+              if (onAction) onAction(label);
+              else comingSoon(label);
             }}
             className="block w-full px-3 py-1.5 text-left text-[11.5px] text-[#5B6B7C] transition hover:bg-surface-subtle"
           >

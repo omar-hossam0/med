@@ -2,12 +2,11 @@
 
 import { RotateCcw } from "lucide-react";
 import {
-  DS_DEPARTMENTS,
-  DS_LOCATIONS,
   VERIFICATION_LABEL,
   ACCOUNT_STATUS_LABEL,
 } from "@/lib/mock/doctorsStaff";
 import { SelectField } from "@/components/ui/SelectField";
+import { useReferenceData } from "@/components/admin/ReferenceDataProvider";
 import { useDirectory } from "./DirectoryProvider";
 import { cn } from "@/lib/cn";
 
@@ -20,6 +19,7 @@ const ACCOUNT_OPTIONS = ["All Statuses", ...Object.values(ACCOUNT_STATUS_LABEL)]
 
 export function FiltersPanel() {
   const { filters, setFilter, clearFilters } = useDirectory();
+  const { departments, locations } = useReferenceData();
 
   const activeCount = (
     ["department", "role", "verification", "accountStatus", "location"] as const
@@ -65,7 +65,7 @@ export function FiltersPanel() {
           id="fp-department"
           label="Department"
           value={filters.department}
-          options={["All Departments", ...DS_DEPARTMENTS]}
+          options={["All Departments", ...departments.map((d) => d.name)]}
           onChange={(v) => setFilter("department", v)}
         />
         <FilterSelect
@@ -93,7 +93,7 @@ export function FiltersPanel() {
           id="fp-location"
           label="Work Location"
           value={filters.location}
-          options={["All Locations", ...DS_LOCATIONS]}
+          options={["All Locations", ...locations.map((l) => l.name)]}
           onChange={(v) => setFilter("location", v)}
         />
       </div>

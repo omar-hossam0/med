@@ -113,8 +113,9 @@ export function ConfirmDialog({
               <Row label="Initial status" value="Pending Invitation" />
             </dl>
 
-            <p className="mt-3 rounded-lg bg-[#FFF9EC] px-3 py-2 text-[10px] leading-relaxed text-[#8A6420]">
-              Demo only — this adds the account to the local list. No database record or invitation email is created.
+            <p className="mt-3 rounded-lg bg-[#F6FAFB] px-3 py-2 text-[10px] leading-relaxed text-[#5B6B7C]">
+              The account is created in the database as pending activation. After creation you get a
+              one-time link to hand to the user; email delivery is not configured yet.
             </p>
 
             <div className="mt-4 flex items-center justify-end gap-2">

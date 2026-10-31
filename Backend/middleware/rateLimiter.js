@@ -16,6 +16,39 @@ const loginRateLimiter = rateLimit({
   skipSuccessfulRequests: false,
 });
 
+/**
+ * Rate limiter for administrative mutations (provisioning, status changes,
+ * invitations). The admin surface is small and deliberate, so the ceiling is
+ * generous but finite.
+ */
+const adminActionLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Too Many Requests",
+    message: "Too many administrative changes. Please wait before trying again.",
+  },
+});
+
+/**
+ * Rate limiter for the public activation endpoint, which consumes a token and
+ * hashes a password on every call.
+ */
+const activationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Too Many Requests",
+    message: "Too many activation attempts. Please wait 15 minutes before trying again.",
+  },
+});
+
 module.exports = {
   loginRateLimiter,
+  adminActionLimiter,
+  activationLimiter,
 };

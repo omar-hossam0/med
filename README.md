@@ -126,7 +126,13 @@ talks to port 3000.
 | `npm run db:migrate` | Apply pending migrations, recording each one |
 | `npm run db:baseline -- 001 002` | Record migrations as applied **without executing** |
 | `npm run bootstrap:admin` | Create the single Admin account (interactive) |
-| `npm test` | Authentication test suite |
+| `npm run db:seed:demo -- --confirm` | Opt-in demo doctors and staff (`@medora.example`), local databases only |
+| `npm test` | Authentication and admin API test suites |
+
+> `db:seed:demo` writes nothing without `--confirm`. It refuses `NODE_ENV=production`
+> and non-local hosts, skips accounts that already exist, and goes through the real
+> provisioning service. Add `--activate` to set a generated password for each new
+> account and print the credentials once.
 
 ---
 

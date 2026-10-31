@@ -110,10 +110,43 @@ function requirePermission(...requiredPermissions) {
   };
 }
 
+/**
+ * Middleware requiring at least one of the specified permissions.
+ * Must be used after `requireAuth`.
+ *
+ * `requirePermission` above requires every listed permission; admin routes
+ * often accept either of two (for example users.manage OR staff_accounts.view).
+ */
+function requireAnyPermission(...requiredPermissions) {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({
+        error: "Unauthorized",
+        message: "Authentication required.",
+      });
+    }
+
+    const userPermissions = req.user.permissions || [];
+    const hasAny = requiredPermissions.some((perm) =>
+      userPermissions.includes(perm)
+    );
+
+    if (!hasAny) {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: "Access denied: insufficient permission privileges.",
+      });
+    }
+
+    next();
+  };
+}
+
 module.exports = {
   SESSION_COOKIE_NAME,
   extractToken,
   requireAuth,
   requireRole,
   requirePermission,
+  requireAnyPermission,
 };

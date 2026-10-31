@@ -1,0 +1,425 @@
+<!--
+  Medora — session record.
+  Markdown-formatted. If your viewer requires a standard extension, rename to .md;
+  the content is plain Markdown and renders unchanged.
+-->
+
+# Medora — Admin Integration Session Record
+
+| | |
+|---|---|
+| **Date** | 30 October 2026 |
+| **Repository** | `C:\Graduation Project\med` |
+| **Branch** | `main` |
+| **Database** | `medora_db` (PostgreSQL 18), migrations `001`–`005` |
+| **Scope** | Admin **Users** and **Doctors & Staff**, backend + the minimum frontend data layer |
+| **Status** | Implemented and verified; dev stack running on `:3000` + `:5000` |
+
+---
+
+## 1. Executive summary
+
+The session began as a request to complete the admin dashboard backend and ended with both admin
+pages reading PostgreSQL, the account lifecycle working end to end, and two sign-in defects found
+and fixed.
+
+What changed:
+
+1. **Schema** — migrations `004` and `005` added the workforce and account-lifecycle layer the two
+   pages need. The documented staging plan was renumbered to make room.
+2. **Backend** — 11 admin endpoints plus a public activation endpoint, with role + permission +
+   CSRF enforcement, atomic provisioning, status transitions, invitations, audit and security
+   events.
+3. **Frontend** — the mock providers were replaced with API calls; hardcoded specialty, department
+   and location lists now come from the database; status, invitation and verification actions were
+   wired.
+4. **Tooling** — an opt-in demo seed script that goes through the real provisioning service.
+5. **Defects fixed** — doctors were bounced back to `/login` by a role-routing bug; a CORS
+   allowlist rejected the `:3001` dev origin and surfaced as a generic 500.
+
+Nothing is seeded automatically. `medora_db` contains only accounts that were actually created.
+
+---
+
+## 2. Starting point (verified before any change)
+
+| Area | State at the start |
+|---|---|
+| Backend | Express 5.3, `pg` 8.23, session cookie `medora_session`, Argon2id, CSRF on logout only |
+| Mounted routes | `/api/auth` plus two demo checks; no admin module |
+| RBAC | `requireAuth`, `requireRole`, `requirePermission` existed — the last one was unused |
+| Database | Migrations `001`–`003`, 10 tables, 1 admin, 12 specialties, 0 doctors, 0 staff |
+| Frontend | `/admin/users` and `/admin/doctors-staff` fed by `seedUsers` and `mergeMembers(users)`; no fetch calls |
+| Schema docs | `medora.dbml` with **45 tables** (10 implemented, 35 proposed), 129 relationships, 8 table groups |
+
+The decisive constraint: **the pages could not read the database without a frontend change.**
+There is no backend-only mechanism that pushes rows into a client component's state.
+
+---
+
+## 3. Schema review and the corrections it forced
+
+Revision 1 of the plan had been written from the identity/profile section plus keyword searches. A
+full read of the ERD invalidated parts of it:
+
+| # | Earlier assumption | Reality | Consequence |
+|---|---|---|---|
+| 1 | Use `004`/`005` for admin | `SCHEMA_ARCHITECTURE.md` §11 already assigned `004` to scheduling and `005` to consultation capture; the runner rejects duplicate version prefixes | Staging renumbered before any SQL was written |
+| 2 | Build a minimal audit table | `audit_logs`, `security_events`, `notifications` were already fully designed | Implemented exactly as designed |
+| 3 | No FK on `audit_logs.actor_user_id` | The canonical relationship list defines it as `ON DELETE SET NULL` | FK added |
+| 4 | No source for duty/availability | `doctor_availability`, `doctor_time_off`, `appointments` are designed | Dropped the proposed `duty_status` column; those fields stay empty until scheduling exists |
+| 5 | Add a `departments` table silently | `specialties` was designated as the Departments table | Made an explicit decision and documented the revision |
+| 6 | Add `photo_url` | No avatar column anywhere; storage is an open decision | Deferred; the UI uses initials |
+| 7 | Name it `account_invitations` | Open decision #14 names it `user_invitations` | Renamed |
+
+Confirmed genuine gaps across all 45 tables: **no staff/employment profile, no doctor DOB/years/
+location, no non-clinical organizational unit, no invitation table, no avatar column.**
+
+---
+
+## 4. Decisions (all resolved)
+
+| # | Decision | Chosen | Result |
+|---|---|---|---|
+| D-1 | Frontend wiring | **(b)** non-visual data-layer change | Pages read the API; no layout redesign |
+| D-2 | Migration sequencing | **(a)** renumber, admin first | `004`–`005` admin; old `004`–`013` shifted to `006`–`014` |
+| D-3 | Department model | **(a)** new `departments` table | Clinical rows 1:1 with specialties; support rows separate |
+| D-4 | Demo data | **Added, opt-in** | `seed-demo-workforce.js`; never automatic; `medora_db` not seeded |
+
+---
+
+## 5. Database changes
+
+### 5.1 Migration `004_admin_workforce.sql`
+
+| Object | Detail |
+|---|---|
+| `clinic_locations` | `UNIQUE (name, city)`, `country_code`, `timezone`; seeded with Main Hospital, West Clinic, Children's Clinic |
+| `departments` | `kind ∈ {clinical, support}`; clinical rows carry a unique `specialty_id`; CHECK enforces the two shapes; 12 clinical + 3 support seeded |
+| `staff_profiles` | 1:1 with `users` (CASCADE), `department_id` RESTRICT, job title, employment id (partial unique), phone, DOB, bio, work shift, location |
+| `doctor_profiles` | Added `date_of_birth`, `years_of_experience`, `primary_location_id`, `verification_status`; CHECKs for DOB floor, 0–70 years, three verification states, and "verified requires a timestamp" |
+| `users` | Added `trg_users_updated_at` — the column existed since `001` with nothing maintaining it |
+| Guard | `prevent_department_delete()` blocks deleting a clinical department while doctors reference its specialty (`Admin.md` §6.4) |
+
+### 5.2 Migration `005_admin_account_lifecycle.sql`
+
+| Table | Purpose |
+|---|---|
+| `user_invitations` | SHA-256 token hash, `purpose ∈ {invite, password_reset}`, expiry, single use, one live invite per user (partial unique index) |
+| `notifications` | Delivery record; category/channel/status CHECKs; never carries tokens |
+| `audit_logs` | Append-only; actor `SET NULL`, never cascaded; redacted before/after state |
+| `security_events` | Authentication, session, rate-limit, CSRF and `privilege_changed` events |
+
+### 5.3 Staging renumbering
+
+| New | Old | File |
+|---|---|---|
+| 004 | new | `004_admin_workforce.sql` |
+| 005 | new | `005_admin_account_lifecycle.sql` |
+| 006 | 004 | scheduling and care access |
+| 007 | 005 | consultation capture |
+| 008 | 006 | AI execution envelope |
+| 009 | 007 | transcripts and approvals |
+| 010 | 008 | reports and delivery |
+| 011 | 009 | medical records and Agent 2 |
+| 012 | 010 | follow-ups and proposals |
+| 013 | 011 | reference knowledge |
+| 014 | 013 | constraints, seeds, hardening |
+| — | 012 | absorbed into `005` |
+
+Documentation updated in the same change: `medora.dbml` (48 tables, 136 relationships, validated
+with `dbml2sql`), `SCHEMA_ARCHITECTURE.md` (§1.3, §10, §11, §12, §13, §14, §15),
+`SCHEMA_DATA_DICTIONARY.md` (§2, §10).
+
+---
+
+## 6. Backend implementation
+
+### 6.1 Endpoints
+
+| Method | Path | Permission |
+|---|---|---|
+| GET | `/api/admin/users` | `users.manage` **or** `staff_accounts.view` |
+| GET | `/api/admin/users/:id` | same |
+| POST | `/api/admin/users` | `staff_accounts.create` |
+| PATCH | `/api/admin/users/:id` | `staff_accounts.update` |
+| PATCH | `/api/admin/users/:id/status` | `staff_accounts.disable` |
+| POST | `/api/admin/users/:id/invitations` | `staff_accounts.invite` |
+| GET | `/api/admin/doctors-staff` | `staff_accounts.view` |
+| GET | `/api/admin/doctors-staff/:id` | `staff_accounts.view` |
+| PATCH | `/api/admin/doctors-staff/:id` | `staff_accounts.update` |
+| POST | `/api/admin/doctors-staff/:id/verification` | `staff_accounts.update` |
+| GET | `/api/admin/reference-data` | `staff_accounts.view` |
+| POST | `/api/auth/activate` | public, rate-limited |
+
+Every admin route is `requireAuth` → `requireRole("admin")` → specific permission → `verifyCsrf`
+on mutations. `requireAnyPermission` was added because the existing helper requires **all** listed
+permissions.
+
+### 6.2 Vocabulary mapping
+
+| `users.status` | API / UI |
+|---|---|
+| `active` | `active` |
+| `pending_activation` | `pending` |
+| `suspended` | `suspended` |
+| `disabled` | `inactive` |
+
+| DB role | API role |
+|---|---|
+| `doctor` | `doctor` |
+| `receptionist` | `staff` |
+| `patient` | `patient` |
+| `admin` | excluded from these endpoints |
+
+Primary role precedence: `doctor` > `receptionist` > `patient`. Accounts whose only role is
+`admin` never appear in the list, stats or mutation targets.
+
+### 6.3 Provisioning transaction
+
+One transaction: duplicate-email check → `users` (`pending_activation`, `password_hash NULL`,
+`created_by`) → `user_roles` → doctor or staff profile → `user_invitations` → `notifications` →
+`audit_logs` → commit. A failure at any step leaves zero orphan rows.
+
+The admin never chooses or sees a password. The API returns a one-time activation link, which the
+UI shows once with a copy button.
+
+### 6.4 Status lifecycle
+
+| From → To | Allowed | Note |
+|---|---|---|
+| `active` → `suspended` / `disabled` | yes | reason required |
+| `suspended` → `active` / `disabled` | yes | reason required |
+| `disabled` → `active` | yes | 409 if no password |
+| `pending_activation` → `disabled` | yes | revokes the live invitation |
+| `pending_activation` → `active` | no | only `/api/auth/activate` |
+| any → same | no | 409 `status_unchanged` |
+| target is self | no | 403 `self_lockout` |
+| target holds `admin` | no | 403 `admin_protected` |
+
+Every change writes an `audit_logs` row (with the reason) and a `security_events`
+`privilege_changed` row.
+
+### 6.5 Invitations
+
+- Tokens are 32 random bytes, stored only as SHA-256 hashes.
+- Invite TTL 7 days; password-reset TTL 24 hours.
+- Issuing a new token revokes the previous live one.
+- Activation: `invite` sets `status = active`; `password_reset` keeps the current status and
+  revokes all existing sessions.
+- Rate-limited; password policy identical to registration.
+
+### 6.6 Errors
+
+`errorHandler` now passes through `err.code`, so clients get stable codes:
+`validation_error`, `email_taken`, `license_taken`, `employment_id_taken`, `unknown_specialty`,
+`unknown_department`, `unknown_location`, `department_specialty_mismatch`,
+`invalid_status_transition`, `status_unchanged`, `pending_activation_incomplete`,
+`self_lockout`, `admin_protected`, `not_found`, `token_invalid`, `token_expired`,
+`invitation_not_applicable`, `cors_origin_denied`.
+
+---
+
+## 7. Frontend implementation
+
+### 7.1 Data layer
+
+| File | Role |
+|---|---|
+| `src/lib/api/admin.ts` | Fetch client: `credentials: "include"`, CSRF header, typed responses |
+| `src/components/admin/users/UsersProvider.tsx` | Starts empty; loads `/api/admin/users`; `addUser` calls the API and returns the activation path |
+| `src/components/admin/ReferenceDataProvider.tsx` | Loads specialties, departments and locations once for forms and filters |
+| `src/lib/role-home.ts` | Single role → destination mapping |
+
+### 7.2 Pages and components
+
+| Area | Change |
+|---|---|
+| `/admin/users` | Live rows and stats; loading/error states; "Demo data" badge removed |
+| `/admin/users/new` | Specialty/department/location from the database; doctor department follows the specialty; one-time link shown after creation |
+| `/admin/doctors-staff` | Live directory; loading/error/empty states |
+| Doctor/staff detail pages | Fetch by id; verification buttons; invitation actions |
+| `/activate` *(new)* | Consumes the one-time token and sets a password |
+| `/workspace` *(new)* | Guarded destination for doctor/staff accounts |
+
+### 7.3 Lifecycle actions wired
+
+| Action | Endpoint | UI |
+|---|---|---|
+| Change status | `PATCH /users/:id/status` | Row menu → dialog with allowed transitions and a mandatory reason |
+| Resend invitation / reset password | `POST /users/:id/invitations` | Quick Actions + header menu → one-time link dialog |
+| Verify / reject licence | `POST /doctors-staff/:id/verification` | Verification card → two buttons |
+
+Shared components: `ActionDialog` (focus trap, Escape, scroll lock, focus restore),
+`ChangeStatusDialog`, `OneTimeLinkDialog`.
+
+### 7.4 Reference data replaces hardcoded lists
+
+| Surface | Before | After |
+|---|---|---|
+| Specialty | 8 hardcoded names | 12 active specialties |
+| Doctor department | 8 hardcoded names | clinical departments, narrowed to the specialty |
+| Staff department | 9 hardcoded names | all 15 departments |
+| Work location | free text (failed unless exact) | select of 3 clinic locations |
+| Directory filters | 11 departments / 3 locations | database lists |
+
+---
+
+## 8. Demo seed (D-4)
+
+`Backend/scripts/seed-demo-workforce.js`, exposed as `npm run db:seed:demo`.
+
+- 7 doctors + 5 staff, `@medora.example` addresses, created through `adminUsersService.provisionUser`.
+- Requires `--confirm`; refuses `NODE_ENV=production`; refuses non-local hosts unless
+  `--allow-remote`; skips existing emails; aborts without an admin actor.
+- `--activate` sets a generated password per account and prints credentials once; `--links` prints
+  activation links instead.
+- Verified on `medora_test`: 12 created / 0 failed; re-run 0 created / 12 skipped; both guards
+  refused. `medora_db` was not seeded.
+
+---
+
+## 9. Defects found and fixed
+
+### 9.1 Doctor sign-in bounced to `/login`
+
+`LoginPage` sent every non-admin to `/patient/dashboard`; the patient guard rejected the doctor
+role and redirected to `/login`. The session was valid throughout.
+
+Fix: `role-home.ts` mapping used by both `LoginPage` and `RouteGuard`; `/workspace` added as the
+doctor/staff destination; unknown roles now get an explicit message instead of a redirect loop.
+
+### 9.2 "An unexpected error occurred" on sign-in
+
+Next had fallen back to `:3001` (3000 was busy), so the browser origin was
+`http://localhost:3001`. The backend allowlist contained only `:3000`, and the CORS callback raised
+a plain `Error`, which the handler rendered as a 500.
+
+Fix: development accepts any loopback origin on any port; a denied origin returns
+`403 cors_origin_denied` and logs `[CORS] Blocked origin`. Production keeps the explicit list.
+
+### 9.3 Two dev servers sharing `.next`
+
+Two `next dev` instances wrote the same cache, producing 404s for hashed chunks. Consolidated to a
+single stack on `:3000` + `:5000`; the cache was moved out of the project (the sandbox blocks bulk
+deletion).
+
+### 9.4 Smaller corrections
+
+- Work location was free text and failed validation unless typed exactly; now a database select.
+- The creation dialog still said "Demo only — no database record"; corrected.
+- Invitation notes promised an email that is never sent; corrected.
+- The activity tab claimed audit logging was unimplemented; corrected.
+
+---
+
+## 10. Verification evidence
+
+| Check | Result |
+|---|---|
+| `npm test` (Backend) | **31 passed, 0 failed** (8 authentication + 23 admin) |
+| `npx tsc --noEmit` | Pass |
+| `npm run lint` | No warnings or errors |
+| `npm run build` | Pass, including `/activate` and `/workspace` |
+| Migration constraints on `medora_test` | 13/13 — duplicate licence, verified-without-timestamp, department delete guard, live-invite uniqueness, audit actor `SET NULL`, … |
+| DBML | `dbml2sql` exit 0 — 48 tables, 136 relationships |
+| API through the Next proxy | users 200, directory 200, reference data 200 (12/15/3) |
+| Browser: doctor on `medora_test` | Login → `/workspace`, no page errors |
+| Browser: temporary doctor on `medora_db` | Login → `/workspace`; fixture and audit rows removed |
+| Browser: `test1@medora.local` | Login → `/workspace` ("Your account is active", role Doctor, status active) |
+
+---
+
+## 11. Current state
+
+| Item | Value |
+|---|---|
+| Migrations | `001`–`005` |
+| Accounts | `AlaaEldeen` (admin), `test1` (doctor, active), `test2` (receptionist, active) |
+| Reference data | 15 departments, 3 clinic locations, 12 specialties |
+| Audit rows | 9 |
+| Invitations | 3 (all consumed) |
+| Dev stack | frontend `http://localhost:3000`, backend `http://localhost:5000` |
+| Production build | **absent** — `.next` was moved aside; run `npm run build` before `next start` |
+
+---
+
+## 12. Known gaps and next steps
+
+| # | Gap | Notes |
+|---|---|---|
+| 1 | No mailer | Activation and reset links are shown once to the administrator; a mailer is required before production |
+| 2 | No doctor/staff clinical workspace | `/workspace` is an honest placeholder |
+| 3 | `duty`, `nextShift`, `availability` empty | Source is the scheduling stage (`006`) |
+| 4 | Photo upload not persisted | `photoUrl` is always null; the UI uses initials |
+| 5 | Activity tab does not read `audit_logs` | Data is written; no read endpoint yet |
+| 6 | Server-side pagination | Lists return up to 2,000 rows; pages paginate client-side |
+| 7 | Rate limiting behind the Next proxy | All traffic shares one bucket (`SEC-001`) |
+
+The documented next migration is `006_scheduling_and_care_access.sql` (appointments, availability,
+time off, care relationships), which would also let the directory populate availability and duty.
+
+---
+
+## 13. File inventory
+
+### New — backend
+
+`Backend/routes/adminRoutes.js`, `controllers/admin{Users,Directory,Reference}Controller.js`,
+`services/admin{Users,Directory,Reference}Service.js`, `services/invitationService.js`,
+`services/auditService.js`, `utils/{httpError,validators,serializers}.js`,
+`scripts/seed-demo-workforce.js`, `tests/admin.test.js`.
+
+### Modified — backend
+
+`server.js`, `routes/authRoutes.js`, `controllers/authController.js`,
+`middleware/{auth,rateLimiter,errorHandler}.js`, `package.json`.
+
+### New — database
+
+`database/migrations/004_admin_workforce.sql`, `005_admin_account_lifecycle.sql`.
+
+### Modified — database documentation
+
+`medora.dbml`, `SCHEMA_ARCHITECTURE.md`, `SCHEMA_DATA_DICTIONARY.md` (plus a CRLF-only change in
+`medora.dbdiagram`).
+
+### New — frontend
+
+`src/lib/api/admin.ts`, `src/lib/role-home.ts`, `src/app/activate/page.tsx`,
+`src/app/workspace/page.tsx`, `src/components/admin/ReferenceDataProvider.tsx`,
+`ActionDialog.tsx`, `OneTimeLinkDialog.tsx`, `users/ChangeStatusDialog.tsx`.
+
+### Modified — frontend
+
+`src/app/admin/layout.tsx`, `admin/users/page.tsx`, `admin/doctors-staff/page.tsx`,
+both `[id]/page.tsx`, `users/{UsersProvider,UsersManagement,AddUserForm,ConfirmDialog}.tsx`,
+`doctors-staff/{DoctorsStaffDirectory,FiltersPanel,MemberDetails}.tsx`,
+`doctors-staff/details/parts.tsx`, `auth/{LoginPage,RouteGuard}.tsx`.
+
+### Documentation
+
+`ADMIN_BACKEND_INTEGRATION_PLAN.md`, `CHANGES_AND_NEXT_STEPS.md` (§15), `README.md`.
+
+---
+
+## 14. Command reference
+
+```bash
+# from the repository root
+npm run dev                     # backend :5000 + frontend :3000
+
+# from Backend/
+npm run db:migrate              # apply pending migrations
+npm test                        # 31 tests
+npm run db:seed:demo -- --confirm            # opt-in demo accounts
+npm run db:seed:demo -- --confirm --activate # + generated passwords, printed once
+```
+
+Operational notes:
+
+- `npm run dev` fails if `.next` contains a production build that the sandbox cannot delete. Move
+  it aside first (`mv .next <temp>`).
+- Development CORS accepts any loopback origin; production does not.
+- The admin account is excluded from every admin list and cannot be targeted by status or
+  invitation endpoints.
