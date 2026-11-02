@@ -128,9 +128,7 @@ export function SignUpPage() {
       }
 
       showNotice("Account created successfully! Redirecting to sign in...");
-      setTimeout(() => {
-        router.push("/login");
-      }, 1500);
+      router.push("/login");
     } catch {
       const fallbackMsg =
         "Unable to connect to authentication server. Please ensure the backend is running.";

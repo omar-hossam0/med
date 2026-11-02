@@ -37,7 +37,7 @@ const PRIMARY_NAV: NavItem[] = [
   { label: "My Doctors", icon: Users, href: "/patient/my-doctors", color: "#3B6EF6" },
   { label: "Medical Records", icon: FileText, href: "/patient/medical-records", color: "#3B6EF6" },
   { label: "Prescriptions", icon: Pill, href: "/patient/prescriptions", color: "#0A9189" },
-  { label: "Lab Results", icon: FlaskConical, color: "#8B5CF6" },
+  { label: "Lab Results", icon: FlaskConical, href: "/patient/lab-results", color: "#8B5CF6" },
   {
     label: "Messages",
     icon: MessageSquare,

@@ -11,7 +11,8 @@ import { useEffect, useRef, type ReactNode } from "react";
  *
  * - no hydration mismatch and no flash of hidden content;
  * - no permanently hidden content if JavaScript or IntersectionObserver fails;
- * - reduced-motion users never see the hidden state at all;
+ * - reduced-motion users get a pure opacity fade (no travel); the movement is
+ *   removed in globals.css, the content still enters instead of popping in;
  * - elements already on screen (including a restored scroll position) are
  *   left untouched, so readability is never delayed.
  *
@@ -58,7 +59,6 @@ export function RevealOnScroll({
     const el = ref.current;
     if (!el) return;
     if (typeof IntersectionObserver === "undefined") return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     // Already on screen (or scrolled past, e.g. a restored scroll position):
     // the page-entrance transition covers it. Hiding it now would flash or

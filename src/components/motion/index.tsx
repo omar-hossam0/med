@@ -1,6 +1,5 @@
 "use client";
 
-import { useReducedMotion } from "motion/react";
 import type { CSSProperties, ReactNode } from "react";
 import { RevealOnScroll } from "./RevealOnScroll";
 import { cn } from "@/lib/cn";
@@ -11,7 +10,8 @@ import { cn } from "@/lib/cn";
  * - Content is 100% visible in the server-rendered HTML for progressive enhancement.
  * - Animates only transform/translate + opacity (GPU-friendly).
  * - Reveals smoothly when entering the viewport, once only.
- * - Fully disabled under `prefers-reduced-motion` (content renders statically).
+ * - Under `prefers-reduced-motion` the travel is removed (CSS) and only a
+ *   short opacity fade remains; the markup is identical on server and client.
  * - Avoids flash of hidden content and guarantees zero hydration mismatch.
  */
 
@@ -129,10 +129,12 @@ export function HeroReveal({
   delay = 0,
   y = 14,
 }: HeroRevealProps) {
-  const reduce = useReducedMotion();
   const Tag = as as "div";
-  if (reduce) return <Tag className={className}>{children}</Tag>;
 
+  // Always render the same markup on the server and the client. The
+  // `prefers-reduced-motion` override for `.hero-enter` in globals.css makes
+  // this static for reduced-motion users, so no client-side branch (and no
+  // hydration mismatch) is needed.
   const delayMs = delay ? Math.round(delay * 1000) : 0;
   return (
     <Tag

@@ -141,6 +141,17 @@ body {
   animation: pageEnter 0.22s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
+/* Reduced-motion route entrance: opacity only, no movement. Keeps client
+   navigation from looking like a hard document reload. */
+@keyframes pageFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* Hero section load-in (staggered cascade on first page paint) */
 @keyframes heroEnter {
   from {
@@ -185,9 +196,13 @@ body {
 [data-reveal="stagger"][data-reveal-state="in"] > * {
   opacity: 1;
   translate: 0 0;
+  /* The stagger delay is applied ONLY to opacity/translate. The interaction
+     properties (transform, box-shadow, border-color, background-color, color)
+     keep a 0ms delay, otherwise a card in position 6-8 would ignore hover for
+     up to ~350ms after the reveal and feel unresponsive. */
   transition:
-    opacity 420ms cubic-bezier(0.22, 1, 0.36, 1),
-    translate 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 420ms cubic-bezier(0.22, 1, 0.36, 1) var(--reveal-child-delay, 0ms),
+    translate 420ms cubic-bezier(0.22, 1, 0.36, 1) var(--reveal-child-delay, 0ms),
     transform 200ms ease-out,
     box-shadow 200ms ease-out,
     border-color 200ms ease-out,
@@ -197,28 +212,28 @@ body {
 }
 
 [data-reveal="stagger"] > *:nth-child(1) {
-  transition-delay: var(--reveal-delay, 0ms);
+  --reveal-child-delay: var(--reveal-delay, 0ms);
 }
 [data-reveal="stagger"] > *:nth-child(2) {
-  transition-delay: calc(var(--reveal-delay, 0ms) + var(--reveal-stagger, 50ms));
+  --reveal-child-delay: calc(var(--reveal-delay, 0ms) + var(--reveal-stagger, 50ms));
 }
 [data-reveal="stagger"] > *:nth-child(3) {
-  transition-delay: calc(var(--reveal-delay, 0ms) + var(--reveal-stagger, 50ms) * 2);
+  --reveal-child-delay: calc(var(--reveal-delay, 0ms) + var(--reveal-stagger, 50ms) * 2);
 }
 [data-reveal="stagger"] > *:nth-child(4) {
-  transition-delay: calc(var(--reveal-delay, 0ms) + var(--reveal-stagger, 50ms) * 3);
+  --reveal-child-delay: calc(var(--reveal-delay, 0ms) + var(--reveal-stagger, 50ms) * 3);
 }
 [data-reveal="stagger"] > *:nth-child(5) {
-  transition-delay: calc(var(--reveal-delay, 0ms) + var(--reveal-stagger, 50ms) * 4);
+  --reveal-child-delay: calc(var(--reveal-delay, 0ms) + var(--reveal-stagger, 50ms) * 4);
 }
 [data-reveal="stagger"] > *:nth-child(6) {
-  transition-delay: calc(var(--reveal-delay, 0ms) + var(--reveal-stagger, 50ms) * 5);
+  --reveal-child-delay: calc(var(--reveal-delay, 0ms) + var(--reveal-stagger, 50ms) * 5);
 }
 [data-reveal="stagger"] > *:nth-child(7) {
-  transition-delay: calc(var(--reveal-delay, 0ms) + var(--reveal-stagger, 50ms) * 6);
+  --reveal-child-delay: calc(var(--reveal-delay, 0ms) + var(--reveal-stagger, 50ms) * 6);
 }
 [data-reveal="stagger"] > *:nth-child(8) {
-  transition-delay: calc(var(--reveal-delay, 0ms) + var(--reveal-stagger, 50ms) * 7);
+  --reveal-child-delay: calc(var(--reveal-delay, 0ms) + var(--reveal-stagger, 50ms) * 7);
 }
 
 [data-reveal="stagger"][data-reveal-state="in"] > * {
@@ -241,26 +256,56 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* Motion stays instant, but feedback is not motion. Keep colour,
+     background, border, shadow and opacity transitions short so buttons,
+     links and cards still respond visibly to hover/focus. The previous
+     blanket ~0ms clamp made the whole UI feel dead. */
   *,
   *::before,
   *::after {
     animation-duration: 0.001ms !important;
     animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
+    transition-duration: 140ms !important;
+    transition-delay: 0ms !important;
     scroll-behavior: auto !important;
   }
 
-  /* Belt-and-braces: never leave reveal content hidden or offset. */
-  [data-reveal],
-  [data-reveal] > * {
-    opacity: 1 !important;
+  /* Never tween movement, even through `transition-all` / `transition`. */
+  .transition,
+  .transition-all,
+  .transition-transform {
+    transition-property: color, background-color, border-color, box-shadow,
+      opacity, fill, stroke !important;
+  }
+
+  /* Scroll reveals degrade to a pure opacity fade: no translate, no travel. */
+  [data-reveal="fade"],
+  [data-reveal="stagger"] > * {
     translate: none !important;
+  }
+
+  [data-reveal="fade"][data-reveal-state="in"] {
+    transition-duration: 200ms !important;
+  }
+
+  [data-reveal="stagger"][data-reveal-state="in"] > * {
+    transition-duration: 200ms !important;
+    /* Keep hover feedback, but never animate the lift itself. */
+    transition-property: opacity, color, background-color, border-color,
+      box-shadow !important;
+  }
+
+  /* Route transition: fade only (no slide), so navigation still reads as a
+     route change instead of a full document reload. */
+  .page-enter {
+    animation: pageFade 160ms ease-out backwards !important;
   }
 
   .hero-enter {
     opacity: 1 !important;
     transform: none !important;
+    animation: none !important;
   }
 }
 
