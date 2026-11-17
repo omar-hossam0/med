@@ -158,6 +158,135 @@ class Validator {
     return text;
   }
 
+  /**
+   * ISO-8601 timestamp (an explicit offset or trailing Z is required; a bare
+   * local datetime is treated as UTC). Always returns a canonical ISO string.
+   */
+  datetime(value, field, { required = false, label } = {}) {
+    const name = label || field;
+    const text = this.text(value, field, { required, max: 40, label: name });
+    if (text === null) return null;
+
+    const normalized = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(text)
+      ? `${text}Z`
+      : text;
+    const parsed = new Date(normalized);
+    if (Number.isNaN(parsed.getTime()) || !/^\d{4}-\d{2}-\d{2}T/.test(normalized)) {
+      this.fail(field, `${name} must be an ISO-8601 date and time.`);
+      return null;
+    }
+    return parsed.toISOString();
+  }
+
+  /** Calendar date that may be in the future (slots, due dates). */
+  isoDate(value, field, { required = false, label } = {}) {
+    const name = label || field;
+    const text = this.text(value, field, { required, max: 10, label: name });
+    if (text === null) return null;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+      this.fail(field, `${name} must use the YYYY-MM-DD format.`);
+      return null;
+    }
+    const parsed = new Date(`${text}T00:00:00Z`);
+    if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== text) {
+      this.fail(field, `${name} must be a real calendar date.`);
+      return null;
+    }
+    return text;
+  }
+
+  /** HH:MM or HH:MM:SS, returned as HH:MM:SS for PostgreSQL TIME columns. */
+  timeOfDay(value, field, { required = false, label } = {}) {
+    const name = label || field;
+    const text = this.text(value, field, { required, max: 8, label: name });
+    if (text === null) return null;
+
+    const match = /^(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(text);
+    if (!match || Number(match[1]) > 23 || Number(match[2]) > 59 || Number(match[3] || 0) > 59) {
+      this.fail(field, `${name} must be a valid 24-hour time (HH:MM).`);
+      return null;
+    }
+    return `${match[1]}:${match[2]}:${match[3] || "00"}`;
+  }
+
+  /** 0 = Sunday … 6 = Saturday, matching doctor_availability.weekday. */
+  weekday(value, field = "weekday", { required = false } = {}) {
+    if (value === undefined || value === null || value === "") {
+      if (required) this.fail(field, "Weekday is required.");
+      return null;
+    }
+    const parsed = Number(value);
+    if (!Number.isInteger(parsed) || parsed < 0 || parsed > 6) {
+      this.fail(field, "Weekday must be a whole number between 0 (Sunday) and 6 (Saturday).");
+      return null;
+    }
+    return parsed;
+  }
+
+  boolean(value, field, { required = false } = {}) {
+    if (value === undefined || value === null || value === "") {
+      if (required) this.fail(field, `${field} is required.`);
+      return null;
+    }
+    if (value === true || value === "true") return true;
+    if (value === false || value === "false") return false;
+    this.fail(field, `${field} must be true or false.`);
+    return null;
+  }
+
+  /** A JSON object (not an array, not null) for JSONB columns. */
+  jsonObject(value, field, { required = false, label } = {}) {
+    const name = label || field;
+    if (value === undefined || value === null || value === "") {
+      if (required) this.fail(field, `${name} is required.`);
+      return null;
+    }
+    if (
+      typeof value !== "object" ||
+      Array.isArray(value) ||
+      value instanceof Date ||
+      Buffer.isBuffer(value)
+    ) {
+      this.fail(field, `${name} must be a JSON object.`);
+      return null;
+    }
+    try {
+      return JSON.parse(JSON.stringify(value));
+    } catch {
+      this.fail(field, `${name} must be serializable JSON.`);
+      return null;
+    }
+  }
+
+  array(value, field, { required = false, max = 100, label } = {}) {
+    const name = label || field;
+    if (value === undefined || value === null || value === "") {
+      if (required) this.fail(field, `${name} is required.`);
+      return null;
+    }
+    if (!Array.isArray(value)) {
+      this.fail(field, `${name} must be an array.`);
+      return null;
+    }
+    if (value.length > max) {
+      this.fail(field, `${name} must not contain more than ${max} items.`);
+      return null;
+    }
+    return value;
+  }
+
+  /** Lowercase SHA-256 hex digest, used for content and file checksums. */
+  hexHash(value, field, { required = false, label } = {}) {
+    const name = label || field;
+    const text = this.text(value, field, { required, max: 64, label: name });
+    if (text === null) return null;
+    if (!/^[0-9a-f]{64}$/.test(text)) {
+      this.fail(field, `${name} must be a lowercase SHA-256 hex digest.`);
+      return null;
+    }
+    return text;
+  }
+
   /** Same policy as public registration, so activation cannot weaken it. */
   password(value, field = "password") {
     if (!value || typeof value !== "string") {
