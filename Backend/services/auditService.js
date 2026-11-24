@@ -164,4 +164,120 @@ function requestContext(req) {
   };
 }
 
-module.exports = { record, recordSecurityEvent, requestContext };
+/* ---------------------------------------------------------------------------
+ * Domain helpers added for the clinical / scheduling API.
+ * The original record()/recordSecurityEvent() signatures are untouched.
+ * ------------------------------------------------------------------------- */
+
+/**
+ * Appointment status transitions need the dedicated V2 columns
+ * (from_status, to_status, change_source, change_reason) so that
+ * v_appointment_status_timeline can read them. audit_logs CHECK constraints
+ * require entity_type='appointment', a non-null to_status and change_source.
+ */
+async function recordAppointmentTransition(client, entry) {
+  const {
+    actorUserId = null,
+    appointmentId,
+    patientUserId = null,
+    fromStatus = null,
+    toStatus,
+    changeSource,
+    changeReason = null,
+    metadata = {},
+    severity = "info",
+    ip = null,
+    userAgent = null,
+    requestId = null,
+  } = entry;
+
+  if (!appointmentId || !toStatus || !changeSource) {
+    throw new Error("auditService.recordAppointmentTransition requires appointmentId, toStatus and changeSource.");
+  }
+  if (fromStatus === toStatus) {
+    throw new Error("auditService.recordAppointmentTransition: fromStatus and toStatus must differ.");
+  }
+
+  await clientOrPool(client).query(
+    `INSERT INTO audit_logs
+       (actor_user_id, actor_type, event_type, event_category, severity,
+        entity_type, entity_id, patient_user_id, outcome, request_id,
+        ip_address, user_agent, from_status, to_status, change_source,
+        change_reason, metadata)
+     VALUES ($1, 'user', 'appointment.status_changed', 'appointment', $2,
+             'appointment', $3, $4, 'success', $5,
+             $6, $7, $8, $9, $10, $11, $12)`,
+    [
+      actorUserId,
+      severity,
+      appointmentId,
+      patientUserId,
+      requestId,
+      ip,
+      userAgent,
+      fromStatus,
+      toStatus,
+      changeSource,
+      changeReason,
+      JSON.stringify(metadata),
+    ]
+  );
+}
+
+/** Convenience wrapper: flattens request context and applies safe defaults. */
+async function recordMutation(client, entry) {
+  const { context = {}, ...rest } = entry;
+  return record(client, {
+    actorType: "user",
+    eventCategory: "configuration",
+    outcome: "success",
+    ip: context.ip ?? null,
+    userAgent: context.userAgent ?? null,
+    ...rest,
+  });
+}
+
+/**
+ * A doctor opening a patient chart is an auditable clinical-access event.
+ * `patientUserId` is mandatory so the access trail can be queried by patient.
+ */
+async function recordClinicalAccess(client, entry) {
+  const { actorUserId, patientUserId, entityType, entityId, context = {}, metadata = {} } = entry;
+  return record(client, {
+    actorUserId,
+    actorType: "user",
+    eventType: "clinical.record_accessed",
+    eventCategory: "clinical_access",
+    entityType,
+    entityId: entityId || null,
+    patientUserId,
+    outcome: "success",
+    metadata,
+    ip: context.ip ?? null,
+    userAgent: context.userAgent ?? null,
+  });
+}
+
+/** Write a denial that survives the failing transaction (uses the pool). */
+async function recordSecurityDenial(entry) {
+  const { userId = null, eventType = "security.clinical_access_denied", metadata = {}, context = {}, severity = "warning" } = entry;
+  return recordSecurityEvent(null, {
+    eventType,
+    severity,
+    userId,
+    outcome: "denied",
+    metadata,
+    ip: context.ip ?? null,
+    userAgent: context.userAgent ?? null,
+  });
+}
+
+module.exports = {
+  record,
+  recordSecurityEvent,
+  requestContext,
+  recordAppointmentTransition,
+  recordMutation,
+  recordClinicalAccess,
+  recordSecurityDenial,
+};

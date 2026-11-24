@@ -12,7 +12,12 @@
     "db:validate": "node scripts/validate-dbml.js",
     "bootstrap:admin": "node scripts/bootstrap-admin.js",
     "db:seed:demo": "node scripts/seed-demo-workforce.js",
-    "test": "node --test tests/auth.test.js tests/admin.test.js",
+    "test": "node --test tests/auth.test.js tests/admin.test.js tests/unit.test.js tests/rbac.test.js tests/patient.test.js tests/scheduling.test.js tests/clinical.test.js tests/adminExtensions.test.js tests/reference.test.js",
+    "test:offline": "node --test tests/unit.test.js tests/rbac.test.js",
+    "test:db": "node --test tests/auth.test.js tests/admin.test.js tests/patient.test.js tests/scheduling.test.js tests/clinical.test.js tests/adminExtensions.test.js tests/reference.test.js",
+    "test:unit": "node --test tests/unit.test.js",
+    "test:rbac": "node --test tests/rbac.test.js",
+    "test:new": "node --test tests/unit.test.js tests/rbac.test.js tests/patient.test.js tests/scheduling.test.js tests/clinical.test.js tests/adminExtensions.test.js tests/reference.test.js",
     "test:schema": "node tests/schema-v2.test.js"
   },
   "keywords": [],

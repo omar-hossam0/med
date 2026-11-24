@@ -3,6 +3,13 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const authRoutes = require("./routes/authRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const adminExtensionRoutes = require("./routes/adminExtensionRoutes");
+const patientRoutes = require("./routes/patientRoutes");
+const doctorRoutes = require("./routes/doctorRoutes");
+const staffRoutes = require("./routes/staffRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
+const referenceRoutes = require("./routes/referenceRoutes");
+const internalAgentRoutes = require("./routes/internalAgentRoutes");
 const { requireAuth, requireRole } = require("./middleware/auth");
 const errorHandler = require("./middleware/errorHandler");
 
@@ -67,6 +74,19 @@ app.use("/api/auth", authRoutes);
 
 // Admin dashboard routes (users, doctors & staff, reference data)
 app.use("/api/admin", adminRoutes);
+// Additional admin-only operational surfaces. Mounted after the baseline
+// router so existing /api/admin/* routes keep their exact behaviour.
+app.use("/api/admin", adminExtensionRoutes);
+
+// Clinical, scheduling and workspace routers. Each applies its own role gate.
+app.use("/api/patient", patientRoutes);
+app.use("/api/doctor", doctorRoutes);
+app.use("/api/staff", staffRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/reference", referenceRoutes);
+
+// Internal AI service workflows — service token only, never a browser session.
+app.use("/api/internal/agents", internalAgentRoutes);
 
 // Protected demonstration endpoints for RBAC verification
 app.get("/api/admin/check", requireAuth, requireRole("admin"), (req, res) => {

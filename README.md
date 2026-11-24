@@ -127,12 +127,39 @@ talks to port 3000.
 | `npm run db:baseline -- 001 002` | Record migrations as applied **without executing** |
 | `npm run bootstrap:admin` | Create the single Admin account (interactive) |
 | `npm run db:seed:demo -- --confirm` | Opt-in demo doctors and staff (`@medora.example`), local databases only |
-| `npm test` | Authentication and admin API test suites |
+| `npm test` | All backend suites (DB-backed suites require `DB_PASSWORD`) |
+| `npm run test:offline` | Unit + RBAC suites — no database needed |
+| `npm run test:db` | Auth, admin, patient, scheduling, clinical, admin-extension and reference suites |
+| `npm run test:unit` / `test:rbac` / `test:new` | Focused suites |
+| `npm run test:schema` | V2 schema/trigger verification against the real database |
 
 > `db:seed:demo` writes nothing without `--confirm`. It refuses `NODE_ENV=production`
 > and non-local hosts, skips accounts that already exist, and goes through the real
 > provisioning service. Add `--activate` to set a generated password for each new
 > account and print the credentials once.
+
+---
+
+## API endpoints
+
+All routes are mounted in `Backend/server.js`. The baseline auth and admin
+routes are unchanged. Every new endpoint applies `requireAuth`, a role gate,
+server-side validation and record-specific access; mutations are CSRF-checked
+and audited. Request bodies are snake_case, responses are camelCase.
+
+| Family | Endpoints |
+|---|---|
+| Baseline | `POST /api/auth/register`, `login`, `activate`; `GET /api/auth/me`; `POST /api/auth/logout`; `GET /api/admin/check`; `GET /api/patient/check`; `GET /api/admin/users`, `/users/:id`; `POST /api/admin/users`; `PATCH /api/admin/users/:id`, `/users/:id/status`; `POST /api/admin/users/:id/invitations`; `GET /api/admin/doctors-staff`, `/doctors-staff/:id`, `/reference-data`; `PATCH /api/admin/doctors-staff/:id`; `POST /api/admin/doctors-staff/:id/verification` |
+| Patient | `GET/PATCH /api/patient/profile`; `GET /api/patient/doctors`, `/doctors/:id`, `/departments`, `/dashboard`; `GET /api/patient/availability/slots`; `GET /api/patient/appointments`, `/appointments/:id`, `/appointments/:id/timeline`; `POST /api/patient/appointments`, `/appointments/:id/reschedule`, `/appointments/:id/cancel`; `GET /api/patient/medical-records`, `/medical-records/:type/:id`, `/lab-results`, `/lab-results/:id`, `/prescriptions`, `/prescriptions/:id`, `/medications`, `/reports`, `/reports/:id`, `/transcripts/:id`, `/follow-ups`; `POST /api/patient/appointment-proposals/:id/select` |
+| Doctor | `GET/PATCH /api/doctor/me`; `GET/POST /api/doctor/availability`; `PATCH /api/doctor/availability/:id`; `POST /api/doctor/time-off`; `DELETE /api/doctor/time-off/:id`; `GET /api/doctor/appointments`; `POST /api/doctor/appointments/:id/start`, `/complete`; `GET /api/doctor/consultations`, `/consultations/:id`; `POST /api/doctor/consultations/:id/start`, `/complete`, `/consents`, `/consents/:consentId/revoke`, `/recordings`; `PATCH /api/doctor/consultations/:id/recordings/:recordingId`; `GET /api/doctor/consultations/:id/transcripts`, `/reports`; `GET /api/doctor/transcripts/:id`, `/reports/:id`, `/reports/:id/versions/:versionId`, `/proposals/:id`; `POST /api/doctor/transcripts`, `/transcripts/:id/versions`, `/transcript-versions/:id/review`, `/reports/:id/versions`, `/report-versions/:id/review`, `/reports/:id/publish`, `/reports/:id/withdraw`; `GET /api/doctor/patients/:id/proposals`, `/record`, `/follow-ups`; `POST /api/doctor/patients/:id/record-entries`, `/proposals/:id/review`, `/proposals/:id/apply`, `/follow-ups/:id/accept`, `/decline`, `/proposals` |
+| Staff | `GET /api/staff/me`, `/dashboard`, `/patients/:id`, `/appointments`, `/appointments/:id`; `PATCH /api/staff/appointments/:id/schedule`, `/notes`; `POST /api/staff/appointments/:id/confirm`, `/check-in`, `/start`, `/complete`, `/no-show`; `POST /api/staff/appointment-proposals/:id/book` |
+| Notifications | `GET /api/notifications`, `/notifications/unread-count`; `PATCH /api/notifications/:id/read` |
+| Admin extensions | `GET /api/admin/dashboard`; `GET /api/admin/ai/reports`, `/summary`, `/daily-series`, `/doctors/ranking`, `/health`, `/activities`, `/reports/:id/events`; `GET /api/admin/departments`; `POST /api/admin/departments`; `PATCH /api/admin/departments/:id`; `PUT /api/admin/departments/:id/doctors`, `/services` |
+| Reference / RAG | `GET /api/reference/documents`, `/documents/:id`, `/versions/:id/chunks`, `/rag/queries/:id`; `POST /api/reference/documents`, `/versions`, `/versions/:id/extraction`, `/quality-review`, `/approve`, `/index`, `/rag/query` |
+| Internal agents | `POST /api/internal/agents/transcription`, `/reports`, `/profile-organization`, `/follow-up-scheduling`, `/extraction` — `x-service-token` only |
+
+See `docs/FRONTEND_API_HANDOFF.md` for response shapes and `docs/API_DECISIONS.md`
+for the decisions log.
 
 ---
 
@@ -146,9 +173,19 @@ database/
 ├── medora.dbml                       # design reference — not executable
 ├── medora.dbdiagram                  # dbdiagram.io layout
 └── migrations/
-    ├── 001_identity_access.sql       # tables, roles, permissions, RBAC seeds
+    ├── 001_identity_access.sql          # identity, RBAC seeds
     ├── 002_single_admin_enforcement.sql
-    └── 003_patient_doctor_profiles.sql
+    ├── 003_patient_doctor_profiles.sql  # profiles, specialties
+    ├── 004_admin_workforce.sql          # departments, locations, staff profiles
+    ├── 005_admin_account_lifecycle.sql  # invitations, notifications, audit
+    ├── 006_audit_logs_unification.sql   # 2 read views
+    ├── 007_scheduling_core.sql          # availability, appointments, care access
+    ├── 008_consultations_transcripts.sql
+    ├── 009_agent_reports.sql
+    ├── 010_followups_proposals.sql
+    ├── 011_medical_records.sql
+    ├── 012_reference_knowledge.sql
+    └── 013_audit_identity_reference.sql
 ```
 
 ### Tables
@@ -156,8 +193,18 @@ database/
 | Group | Tables |
 |---|---|
 | Identity (001) | `users`, `roles`, `user_roles`, `permissions`, `role_permissions`, `sessions` |
-| Profiles (003) | `patient_profiles`, `specialties`, `doctor_profiles` |
+| Profiles / workforce (003, 004) | `patient_profiles`, `specialties`, `doctor_profiles`, `clinic_locations`, `departments`, `staff_profiles` |
+| Lifecycle / audit (005, 006, 013) | `user_invitations`, `notifications`, `audit_logs` (+ views `v_appointment_status_timeline`, `v_security_events`) |
+| Scheduling (007) | `doctor_availability`, `doctor_time_off`, `appointments`, `care_relationships` |
+| Consultations (008) | `consultations`, `consultation_consents`, `consultation_recordings`, `transcripts`, `transcript_versions`, `agent_executions` |
+| Reports (009) | `medical_reports`, `report_versions`, `record_update_proposals` |
+| Follow-up (010) | `follow_ups`, `appointment_proposals` |
+| Medical record (011) | `medical_conditions`, `patient_medications`, `patient_allergies`, `medical_history_entries`, `test_orders`, `test_results` |
+| Reference (012) | `reference_documents`, `reference_document_versions`, `reference_chunks`, `rag_queries`, `rag_citations` |
 | Migration history | `schema_migrations` (managed by the runner) |
+
+The doctor foreign key is always `doctor_user_id` (or `ordered_by_doctor_user_id`
+on `test_orders`). There is no `doctor_id` column.
 
 ### Migration rules
 
@@ -175,8 +222,12 @@ database/
 |---|---|---|
 | `patient` | Public sign-up | Name, email, password only |
 | `admin` | `bootstrap:admin` | Exactly one per database |
-| `doctor` | Admin (future module) | Never self-registers |
-| `receptionist` | Admin (future module) | Represents operational staff |
+| `doctor` | Admin provisioning | Never self-registers; needs a verified licence |
+| `receptionist` | Admin provisioning | Represents operational staff (`staff` in the UI) |
+
+Internal AI agents are **service workflows**, not human roles. Set
+`AGENT_SERVICE_TOKEN` in `Backend/.env` to enable `/api/internal/agents/*`;
+without it those routes fail closed with HTTP 503.
 
 ---
 
@@ -186,12 +237,14 @@ database/
 Backend/
 ├── server.js                 # Express entry point
 ├── config/db.js              # pg pool
-├── routes/                   # route tables
-├── controllers/              # HTTP handlers
-├── services/                 # business logic and data access
-├── middleware/               # auth, CSRF, rate limiting, errors
+├── routes/                   # auth, admin, admin extensions, patient, doctor, staff,
+│                             # notifications, reference, internal agents
+├── controllers/              # thin HTTP handlers (no SQL)
+├── services/                 # business logic, SQL, transaction owner
+├── middleware/               # auth, CSRF, service auth, rate limiting, errors
+├── utils/                    # validators, httpError, serializers, dbHelpers
 ├── scripts/                  # migrate, baseline, bootstrap-admin
-└── tests/
+└── tests/                    # unit, RBAC and DB-backed endpoint suites
 
 src/
 ├── app/                      # App Router routes
@@ -224,6 +277,9 @@ service is `postgresql-x64-18`.
 | File | Contents |
 |---|---|
 | `AGENTS.md` | Repository conventions and coding rules |
+| `BACKEND_ENDPOINT_IMPLEMENTATION_GUIDE.md` | Endpoint specification this API implements |
+| `docs/API_DECISIONS.md` | Decisions log for §12 open items and implementation deviations |
+| `docs/FRONTEND_API_HANDOFF.md` | API client conventions, response shapes, remaining mock-only screens |
 | `Admin.md` | Admin module product context |
 | `PatientJourney.md` | Patient journey change summary |
 | `DB_NEXT_STEP.md` | Backend roadmap analysis and next step |

@@ -47,8 +47,63 @@ const activationLimiter = rateLimit({
   },
 });
 
+/**
+ * Clinical reads are cheap but sensitive. The ceiling is deliberately generous
+ * for a clinician's working day while still bounding automated scraping.
+ */
+const clinicalReadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Too Many Requests",
+    message: "Too many clinical record reads. Please wait before trying again.",
+  },
+});
+
+/** Internal agent executions: idempotent, but never unmetered. */
+const agentRunLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Too Many Requests",
+    message: "Too many agent executions. Please wait before retrying.",
+  },
+});
+
+/** RAG queries can be expensive; bound them per client. */
+const ragQueryLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Too Many Requests",
+    message: "Too many reference queries. Please wait before trying again.",
+  },
+});
+
+/** General bounds on state-changing clinical/patient mutations. */
+const clinicalMutationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Too Many Requests",
+    message: "Too many changes were submitted. Please wait before trying again.",
+  },
+});
+
 module.exports = {
   loginRateLimiter,
   adminActionLimiter,
   activationLimiter,
+  clinicalReadLimiter,
+  agentRunLimiter,
+  ragQueryLimiter,
+  clinicalMutationLimiter,
 };
