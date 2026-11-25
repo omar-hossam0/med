@@ -1,0 +1,139 @@
+{
+  "meta": {
+    "mode": "offline-scripted",
+    "git_commit": "no-git",
+    "dense_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    "sparse_model": "Qdrant/bm25",
+    "wide_k": 40,
+    "final_parents": 5,
+    "recency_weight": 0.1,
+    "recency_decay_days": 180,
+    "relevance_floor": 0.0,
+    "expansion_enabled": false
+  },
+  "metrics": {
+    "cases": 35,
+    "recall_at_5": 1.0,
+    "precision": 0.3735,
+    "mrr": 0.9815,
+    "newest_hit_rate": 1.0,
+    "dose_top1": 1.0,
+    "not_found_correctness": 0.4,
+    "mode_accuracy": 1.0,
+    "isolation_leaks": 0,
+    "distractor_hits": 1,
+    "citation_accuracy": 1.0,
+    "grounding_pass_rate": 1.0,
+    "summary_ok_rate": 1.0,
+    "forbidden_content_hits": 0,
+    "latency_p50_ms": 268.78,
+    "latency_p95_ms": 1177.98
+  },
+  "calibration": {
+    "chosen_floor": null,
+    "rationale": "No floor preserved recall while improving precision or not-found correctness; RELEVANCE_FLOOR stays 0.0 (gate off).",
+    "points": [
+      {
+        "floor": 0.0,
+        "recall_at_5": 1.0,
+        "precision": 0.3735,
+        "not_found_correctness": 0.4,
+        "expected_documents_dropped": 0
+      },
+      {
+        "floor": 0.2,
+        "recall_at_5": 0.9032,
+        "precision": 0.3544,
+        "not_found_correctness": 0.4,
+        "expected_documents_dropped": 3
+      },
+      {
+        "floor": 0.3,
+        "recall_at_5": 0.9032,
+        "precision": 0.3636,
+        "not_found_correctness": 0.4,
+        "expected_documents_dropped": 3
+      },
+      {
+        "floor": 0.35,
+        "recall_at_5": 0.871,
+        "precision": 0.3553,
+        "not_found_correctness": 0.4,
+        "expected_documents_dropped": 4
+      },
+      {
+        "floor": 0.4,
+        "recall_at_5": 0.871,
+        "precision": 0.3857,
+        "not_found_correctness": 0.6,
+        "expected_documents_dropped": 4
+      },
+      {
+        "floor": 0.45,
+        "recall_at_5": 0.7742,
+        "precision": 0.4068,
+        "not_found_correctness": 0.6,
+        "expected_documents_dropped": 7
+      },
+      {
+        "floor": 0.5,
+        "recall_at_5": 0.6452,
+        "precision": 0.4348,
+        "not_found_correctness": 1.0,
+        "expected_documents_dropped": 11
+      },
+      {
+        "floor": 0.55,
+        "recall_at_5": 0.6452,
+        "precision": 0.4348,
+        "not_found_correctness": 1.0,
+        "expected_documents_dropped": 11
+      },
+      {
+        "floor": 0.6,
+        "recall_at_5": 0.4839,
+        "precision": 0.4412,
+        "not_found_correctness": 1.0,
+        "expected_documents_dropped": 16
+      },
+      {
+        "floor": 0.65,
+        "recall_at_5": 0.4839,
+        "precision": 0.4545,
+        "not_found_correctness": 1.0,
+        "expected_documents_dropped": 16
+      },
+      {
+        "floor": 0.7,
+        "recall_at_5": 0.3871,
+        "precision": 0.4286,
+        "not_found_correctness": 1.0,
+        "expected_documents_dropped": 19
+      }
+    ]
+  },
+  "distribution": {
+    "relevant": {
+      "count": 31,
+      "min": 0.1474,
+      "p50": 0.5959,
+      "max": 0.8916
+    },
+    "irrelevant": {
+      "count": 41,
+      "min": 0.1566,
+      "p50": 0.5702,
+      "max": 0.8833
+    }
+  },
+  "findings": [
+    "Not-found correctness is 40% at the evaluated floor: irrelevant parents reach the LLM for absent facts. The prompt's rule 1 is the only guard unless a gate is enabled.",
+    "No single dense-cosine floor separates relevant from irrelevant parents without dropping expected documents; the relevant/irrelevant distributions overlap. RELEVANCE_FLOOR stays 0.0."
+  ],
+  "failures": [
+    "renal_exact_dose_5mg: same-patient distractor retrieved (1)",
+    "renal_not_found_hba1c_en: expected no candidates, got 3",
+    "renal_not_found_hba1c_ar: expected no candidates, got 3",
+    "cardiac_not_found_lab_en: expected no candidates, got 5"
+  ]
+}

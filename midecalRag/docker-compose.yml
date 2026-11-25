@@ -1,0 +1,13 @@
+# Qdrant for LOCAL DEVELOPMENT only.
+# Production uses Qdrant Cloud via QDRANT_URL / QDRANT_API_KEY (see .env.example);
+# with this local instance set QDRANT_URL=http://localhost:6333 and leave QDRANT_API_KEY empty.
+services:
+  qdrant:
+    image: qdrant/qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+
+volumes:
+  qdrant_storage:
