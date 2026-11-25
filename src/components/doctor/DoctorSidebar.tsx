@@ -34,15 +34,14 @@ type NavItem = {
 /**
  * Doctor Portal navigation.
  *
- * Overview, My Schedule and Patients are implemented. Every other destination is rendered
- * as a real, focusable item that explains it is a future module instead of
- * linking to a route that does not exist yet.
+ * Implemented destinations link to their routes. Future modules remain
+ * focusable items that explain their availability.
  */
 const PRIMARY_NAV: NavItem[] = [
   { label: "Overview", icon: LayoutDashboard, href: "/doctor/dashboard", color: "#0A9189" },
   { label: "My Schedule", icon: CalendarDays, href: "/doctor/appointments", color: "#5B6B7C" },
   { label: "Patients", icon: Users, href: "/doctor/patients", color: "#3B6EF6" },
-  { label: "Consultation Workspace", icon: Stethoscope, color: "#8B5CF6" },
+  { label: "Consultation Workspace", icon: Stethoscope, href: "/doctor/consultation", color: "#8B5CF6" },
   { label: "Medical Records", icon: FileText, color: "#3B6EF6" },
   { label: "Prescriptions", icon: Pill, color: "#0A9189" },
   { label: "Lab Results", icon: FlaskConical, color: "#8B5CF6" },

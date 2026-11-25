@@ -322,3 +322,29 @@ body {
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* Consultation Workspace — recording waveform.
+   Demo pacing only: no microphone is opened in this phase. */
+@keyframes cwWave {
+  0%,
+  100% {
+    transform: scaleY(0.4);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.cw-wave-bar {
+  transform-origin: center;
+}
+
+.cw-wave-active .cw-wave-bar {
+  animation: cwWave 1.1s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cw-wave-active .cw-wave-bar {
+    animation: none;
+  }
+}
