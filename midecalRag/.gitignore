@@ -1,0 +1,10 @@
+.env
+env/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.db
+*.sqlite3
+# Phase 9: audit trail (contains patient_id hashes and request metadata).
+logs/

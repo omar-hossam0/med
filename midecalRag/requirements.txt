@@ -1,0 +1,17 @@
+# CareOS Medical RAG Service - Phase 0 dependencies
+# LLM provider override: OpenRouter via its OpenAI-compatible API (openai SDK).
+# Exact pins recorded after first successful install on Python 3.14.6 (see PROGRESS.md).
+fastapi==0.162.0
+uvicorn[standard]==0.54.0
+pydantic==2.14.1
+pydantic-settings==2.16.2
+qdrant-client==1.20.0
+fastembed==0.9.1
+httpx==0.28.1
+tenacity==9.2.1
+sqlalchemy==2.1.6
+openai==3.57.0
+pytest==9.2.0
+pytest-asyncio==1.4.1
+ruff==0.17.3
+tzdata==2026.6  # zoneinfo IANA data (needed on Windows for Africa/Cairo)

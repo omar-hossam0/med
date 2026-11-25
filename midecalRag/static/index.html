@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CareOS Medical RAG — Test UI</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --panel: #ffffff;
+    --panel-2: #eef1f5;
+    --border: #d7dce3;
+    --border-strong: #b9c1cc;
+    --text: #15181c;
+    --muted: #5c6673;
+    --accent: #0f6fbf;
+    --accent-soft: #e4f0fb;
+    --ok: #157347;
+    --ok-soft: #e3f4ea;
+    --warn: #8a6100;
+    --warn-soft: #fdf3d9;
+    --err: #b3261e;
+    --err-soft: #fbe9e7;
+    --code-bg: #0f141a;
+    --code-fg: #d6e2ef;
+    --code-key: #7fd3ff;
+    --code-str: #a5e8a0;
+    --code-num: #ffcb6b;
+    --radius: 10px;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e1116;
+      --panel: #151a21;
+      --panel-2: #1b222b;
+      --border: #29313b;
+      --border-strong: #3a4552;
+      --text: #e7edf4;
+      --muted: #98a5b3;
+      --accent: #57a9ff;
+      --accent-soft: #17293c;
+      --ok: #5fd08c;
+      --ok-soft: #12281d;
+      --warn: #e8bf63;
+      --warn-soft: #2a2413;
+      --err: #ff8b81;
+      --err-soft: #2c1715;
+      --code-bg: #0a0e13;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  header.app {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px 0;
+  }
+  .title-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  h1 { font-size: 16px; margin: 0; font-weight: 650; letter-spacing: -0.01em; }
+  .subtitle { color: var(--muted); font-size: 12px; }
+  .spacer { flex: 1 1 auto; }
+  .conn {
+    display: grid;
+    grid-template-columns: 1.4fr 1.4fr 1fr auto;
+    gap: 10px;
+    align-items: end;
+    padding: 12px 0 14px;
+  }
+  @media (max-width: 900px) { .conn { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 560px) { .conn { grid-template-columns: 1fr; } }
+  .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .field > label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  input[type="text"], input[type="password"], input[type="number"], input[type="date"], select, textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: var(--panel);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+    min-width: 0;
+  }
+  textarea { font-family: var(--mono); font-size: 12.5px; line-height: 1.55; resize: vertical; }
+  input:focus, select:focus, textarea:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+    border-color: var(--accent);
+  }
+  .input-group { display: flex; gap: 6px; }
+  .input-group > input { flex: 1 1 auto; }
+  button {
+    font: inherit;
+    font-size: 13px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border-strong);
+    background: var(--panel);
+    color: var(--text);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .12s ease, border-color .12s ease, opacity .12s ease;
+  }
+  button:hover:not(:disabled) { background: var(--panel-2); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  button.primary:hover:not(:disabled) { filter: brightness(1.08); }
+  button.ghost { background: transparent; }
+  button.tiny { padding: 4px 9px; font-size: 12px; }
+  button.danger { color: var(--err); border-color: var(--border-strong); }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-top: 4px; }
+  .tab {
+    padding: 9px 16px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: none;
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 13px;
+    border-radius: 0;
+    margin-bottom: -1px;
+  }
+  .tab:hover:not(.active) { background: transparent; color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  main { padding: 20px; max-width: 1180px; margin: 0 auto; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .card > h2 {
+    font-size: 13px;
+    margin: 0 0 12px;
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--muted);
+  }
+  .grid { display: grid; gap: 12px; }
+  .grid.two { grid-template-columns: 1fr 1fr; }
+  .grid.three { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 760px) { .grid.two, .grid.three { grid-template-columns: 1fr; } }
+  .seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 8px; overflow: hidden; }
+  .seg button {
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    padding: 7px 14px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .seg button.active { background: var(--accent); color: #fff; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .hint { color: var(--muted); font-size: 12px; }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 650;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  .badge.neutral { background: var(--panel-2); color: var(--muted); border-color: var(--border); }
+  .badge.ok { background: var(--ok-soft); color: var(--ok); border-color: var(--ok); }
+  .badge.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .badge.err { background: var(--err-soft); color: var(--err); border-color: var(--err); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  pre.json {
+    background: var(--code-bg);
+    color: var(--code-fg);
+    padding: 12px 14px;
+    border-radius: 8px;
+    overflow: auto;
+    max-height: 380px;
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.55;
+    white-space: pre;
+    tab-size: 2;
+  }
+  pre.json .k { color: var(--code-key); }
+  pre.json .s { color: var(--code-str); }
+  pre.json .n { color: var(--code-num); }
+  pre.json .b { color: #d9a6ff; }
+  details.raw { border-top: 1px dashed var(--border); margin-top: 12px; padding-top: 10px; }
+  details.raw > summary {
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    list-style: none;
+    user-select: none;
+  }
+  details.raw > summary::-webkit-details-marker { display: none; }
+  details.raw > summary::before { content: "▸ "; }
+  details.raw[open] > summary::before { content: "▾ "; }
+  details.raw > div { margin-top: 10px; }
+  .chat {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 120px;
+    max-height: 560px;
+    overflow-y: auto;
+    padding: 4px;
+  }
+  .msg { display: flex; flex-direction: column; gap: 6px; max-width: 88%; }
+  .msg.user { align-self: flex-end; align-items: flex-end; }
+  .msg.assistant { align-self: flex-start; }
+  .bubble {
+    padding: 10px 13px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    white-space: pre-wrap;
+    word-break: break-word;
+    unicode-bidi: plaintext;
+  }
+  .msg.user .bubble { background: var(--accent-soft); border-color: var(--accent); }
+  .msg-meta { font-size: 11px; color: var(--muted); }
+  .sources { display: grid; gap: 8px; width: 100%; margin-top: 4px; }
+  .source {
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 8px 10px;
+    background: var(--panel);
+    font-size: 12.5px;
+  }
+  .source-head { display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; margin-bottom: 4px; }
+  .source-id { font-family: var(--mono); font-size: 11.5px; font-weight: 650; }
+  .source-snippet {
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    unicode-bidi: plaintext;
+  }
+  .section-card { border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 10px; background: var(--panel-2); }
+  .section-card h3 { margin: 0 0 6px; font-size: 12.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .section-body { white-space: pre-wrap; word-break: break-word; unicode-bidi: plaintext; }
+  .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 24px 8px; }
+  .toast-wrap { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 50; }
+  .toast {
+    background: var(--panel);
+    border: 1px solid var(--border-strong);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 9px 13px;
+    font-size: 12.5px;
+    box-shadow: 0 6px 20px rgba(0,0,0,.14);
+    max-width: 360px;
+  }
+  .toast.err { border-left-color: var(--err); }
+  .toast.ok { border-left-color: var(--ok); }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+</head>
+<body>
+
+<header class="app">
+  <div class="title-row">
+    <h1>CareOS Medical RAG — Test UI</h1>
+    <span class="subtitle">local developer console · no build step</span>
+    <span class="spacer"></span>
+    <span id="health-badge" class="badge neutral"><span class="dot"></span><span id="health-text">not checked</span></span>
+  </div>
+
+  <div class="conn">
+    <div class="field">
+      <label for="base-url">Base URL</label>
+      <input id="base-url" type="text" spellcheck="false" placeholder="http://127.0.0.1:8000" />
+    </div>
+    <div class="field">
+      <label for="api-key">X-API-Key</label>
+      <div class="input-group">
+        <input id="api-key" type="password" spellcheck="false" autocomplete="off" placeholder="paste the service key" />
+        <button class="tiny ghost" id="toggle-key" type="button" title="Show / hide">show</button>
+      </div>
+    </div>
+    <div class="field">
+      <label for="patient-id">patient_id</label>
+      <input id="patient-id" type="text" spellcheck="false" value="test_patient_01" />
+    </div>
+    <div class="field">
+      <label>&nbsp;</label>
+      <button id="check-health" type="button" class="primary">Check /health</button>
+    </div>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab active" data-tab="ingest" role="tab">1 · Ingest</button>
+    <button class="tab" data-tab="ask" role="tab">2 · Doctor Q&amp;A</button>
+    <button class="tab" data-tab="summary" role="tab">3 · Patient Summary</button>
+  </div>
+</header>
+
+<main>
+  <!-- ============================ TAB 1: INGEST ============================ -->
+  <section class="panel active" id="panel-ingest">
+    <div class="card">
+      <h2>Document</h2>
+      <div class="row" style="margin-bottom:12px">
+        <div class="seg" id="ingest-mode">
+          <button type="button" data-mode="ocr" class="active">OCR Output</button>
+          <button type="button" data-mode="session">Session Report</button>
+        </div>
+        <span class="hint" id="mode-hint">ocr_output is sent; session_report_data is null.</span>
+        <span class="spacer"></span>
+        <button class="tiny ghost" id="fill-ar-lab" type="button">Fill Sample Arabic Lab Result</button>
+        <button class="tiny ghost" id="fill-rx" type="button">Fill Sample Prescription</button>
+      </div>
+
+      <div class="grid three">
+        <div class="field">
+          <label for="doc-id">document_id</label>
+          <div class="input-group">
+            <input id="doc-id" type="text" spellcheck="false" />
+            <button class="tiny" id="gen-doc-id" type="button" title="doc_&lt;timestamp&gt;">New</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="uploaded-at">uploaded_at (ISO-8601 UTC)</label>
+          <input id="uploaded-at" type="text" spellcheck="false" />
+        </div>
+        <div class="field">
+          <label for="selected-type">user_selected_type</label>
+          <select id="selected-type">
+            <option value="lab_result">lab_result</option>
+            <option value="prescription">prescription</option>
+            <option value="radiology">radiology</option>
+            <option value="medical_report">medical_report</option>
+            <option value="session_report">session_report</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid two" style="margin-top:12px">
+        <div class="field">
+          <label for="selected-date">user_selected_date (optional)</label>
+          <input id="selected-date" type="date" />
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="ocr-card">
+      <h2>OCR output</h2>
+      <div class="field">
+        <label for="raw-text">raw_text</label>
+        <textarea id="raw-text" rows="8" spellcheck="false" placeholder="Paste the OCR text here…"></textarea>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <label class="hint" style="display:flex;gap:6px;align-items:center">
+          <input type="checkbox" id="manual-lines" /> edit <code>lines</code> manually
+        </label>
+        <span class="hint" id="lines-count">lines: 0</span>
+      </div>
+      <div class="field" id="manual-lines-wrap" style="margin-top:8px; display:none">
+        <label for="lines-text">lines (one per row)</label>
+        <textarea id="lines-text" rows="6" spellcheck="false"></textarea>
+      </div>
+      <div class="grid two" style="margin-top:12px">
+        <div class="field">
+          <label for="detected-type">detected_doc_type (optional)</label>
+          <select id="detected-type">
+            <option value="">null</option>
+            <option value="lab_result">lab_result</option>
+            <option value="prescription">prescription</option>
+            <option value="radiology">radiology</option>
+            <option value="medical_report">medical_report</option>
+            <option value="session_report">session_report</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="extracted-date">extracted_date (optional)</label>
+          <input id="extracted-date" type="date" />
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="session-card" style="display:none">
+      <h2>Session report</h2>
+      <div class="grid two">
+        <div class="field">
+          <label for="chief-complaint">chief_complaint</label>
+          <textarea id="chief-complaint" rows="2"></textarea>
+        </div>
+        <div class="field">
+          <label for="hpi">history_of_present_illness</label>
+          <textarea id="hpi" rows="2"></textarea>
+        </div>
+        <div class="field">
+          <label for="assessment">assessment_and_diagnosis</label>
+          <textarea id="assessment" rows="2"></textarea>
+        </div>
+        <div class="field">
+          <label for="treatment-plan">treatment_plan</label>
+          <textarea id="treatment-plan" rows="2"></textarea>
+        </div>
+        <div class="field">
+          <label for="consultation-date">consultation_date (optional)</label>
+          <input id="consultation-date" type="date" />
+        </div>
+        <div class="field">
+          <label for="approved-at">approved_at (ISO-8601 UTC)</label>
+          <input id="approved-at" type="text" spellcheck="false" />
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="margin-bottom:10px">
+        <button class="primary" id="send-ingest" type="button">POST /rag/ingest</button>
+        <span class="spacer"></span>
+        <span id="ingest-status" class="badge neutral"><span class="dot"></span><span>idle</span></span>
+      </div>
+      <details class="raw" open>
+        <summary>Request payload (live)</summary>
+        <div><pre class="json" id="ingest-payload">—</pre></div>
+      </details>
+      <details class="raw">
+        <summary>Response</summary>
+        <div><pre class="json" id="ingest-response">—</pre></div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ============================== TAB 2: ASK ============================== -->
+  <section class="panel" id="panel-ask">
+    <div class="card">
+      <h2>Filters</h2>
+      <div class="grid three">
+        <div class="field">
+          <label for="ask-doc-type">doc_type</label>
+          <select id="ask-doc-type">
+            <option value="">All</option>
+            <option value="lab_result">lab_result</option>
+            <option value="prescription">prescription</option>
+            <option value="radiology">radiology</option>
+            <option value="medical_report">medical_report</option>
+            <option value="session_report">session_report</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="ask-date-from">date_from</label>
+          <input id="ask-date-from" type="date" />
+        </div>
+        <div class="field">
+          <label>&nbsp;</label>
+          <button class="ghost" id="clear-chat" type="button">Clear chat</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Conversation <span class="hint" id="history-count"></span></h2>
+      <div class="chat" id="chat"></div>
+      <div class="empty" id="chat-empty">No messages yet. Ask something about the active patient.</div>
+
+      <div class="field" style="margin-top:12px">
+        <label for="doctor-query">doctor_query</label>
+        <textarea id="doctor-query" rows="3" placeholder="e.g. What is the latest creatinine?   /   اخر تحليل كرياتينين"></textarea>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="primary" id="send-ask" type="button">Send</button>
+        <span class="hint">Enter sends · Shift+Enter adds a line · the last 5 turns are sent as chat_history</span>
+        <span class="spacer"></span>
+        <span id="ask-status" class="badge neutral"><span class="dot"></span><span>idle</span></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ TAB 3: SUMMARY ============================ -->
+  <section class="panel" id="panel-summary">
+    <div class="card">
+      <h2>Options</h2>
+      <div class="grid three">
+        <div class="field">
+          <label for="summary-language">language</label>
+          <select id="summary-language">
+            <option value="ar" selected>ar</option>
+            <option value="en">en</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="summary-max-docs">max_documents</label>
+          <input id="summary-max-docs" type="number" min="1" max="50" value="20" />
+        </div>
+        <div class="field">
+          <label for="summary-doc-type">optional_filters.doc_type</label>
+          <select id="summary-doc-type">
+            <option value="">All</option>
+            <option value="lab_result">lab_result</option>
+            <option value="prescription">prescription</option>
+            <option value="radiology">radiology</option>
+            <option value="medical_report">medical_report</option>
+            <option value="session_report">session_report</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="summary-date-from">optional_filters.date_from</label>
+          <input id="summary-date-from" type="date" />
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="primary" id="send-summary" type="button">Generate summary</button>
+        <span class="spacer"></span>
+        <span id="summary-status" class="badge neutral"><span class="dot"></span><span>idle</span></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Result</h2>
+      <div id="summary-result"><div class="empty">No summary generated yet.</div></div>
+      <details class="raw">
+        <summary>Raw Request / Response JSON</summary>
+        <div>
+          <pre class="json" id="summary-request">—</pre>
+          <pre class="json" id="summary-response" style="margin-top:10px">—</pre>
+        </div>
+      </details>
+    </div>
+  </section>
+</main>
+
+<div class="toast-wrap" id="toasts"></div>
+
+<script>
+"use strict";
+
+/* ------------------------------------------------------------------ utils */
+const $ = (id) => document.getElementById(id);
+
+function h(tag, props, ...children) {
+  const node = document.createElement(tag);
+  if (props) {
+    for (const [key, value] of Object.entries(props)) {
+      if (value === undefined || value === null) continue;
+      if (key === "class") node.className = value;
+      else if (key === "text") node.textContent = value;
+      else if (key === "dataset") Object.assign(node.dataset, value);
+      else node.setAttribute(key, value);
+    }
+  }
+  for (const child of children.flat()) {
+    if (child === undefined || child === null || child === false) continue;
+    node.append(child instanceof Node ? child : document.createTextNode(String(child)));
+  }
+  return node;
+}
+
+function toast(message, kind = "") {
+  const node = h("div", { class: `toast ${kind}`, text: message });
+  $("toasts").append(node);
+  setTimeout(() => node.remove(), 5200);
+}
+
+function setBadge(id, kind, text) {
+  const badge = $(id);
+  badge.className = `badge ${kind}`;
+  badge.replaceChildren(h("span", { class: "dot" }), h("span", { text }));
+}
+
+/* JSON syntax highlighting.
+   Only &, < and > are escaped: the highlighting regex needs the real quote
+   characters, and quotes are safe inside element content. */
+function escapeText(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function highlightJson(text) {
+  const escaped = escapeText(text);
+  return escaped.replace(
+    /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+    (match) => {
+      let cls = "n";
+      if (/^"/.test(match)) cls = /:$/.test(match) ? "k" : "s";
+      else if (/true|false|null/.test(match)) cls = "b";
+      return `<span class="${cls}">${match}</span>`;
+    },
+  );
+}
+
+function showJson(id, value) {
+  const node = $(id);
+  if (value === undefined) { node.textContent = "—"; return; }
+  const text = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+  node.innerHTML = highlightJson(text);
+}
+
+/* ------------------------------------------------------------ connection */
+const STORAGE_KEY = "careos_rag_test_ui_v1";
+
+function defaultBaseUrl() {
+  if (location.protocol === "http:" || location.protocol === "https:") return location.origin;
+  return "http://127.0.0.1:8000";
+}
+
+function loadSettings() {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch (_) { saved = {}; }
+  $("base-url").value = saved.baseUrl || defaultBaseUrl();
+  $("api-key").value = saved.apiKey || "";
+  $("patient-id").value = saved.patientId || "test_patient_01";
+}
+
+function saveSettings() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      baseUrl: $("base-url").value.trim(),
+      apiKey: $("api-key").value,
+      patientId: $("patient-id").value.trim(),
+    }));
+  } catch (_) { /* storage may be disabled; ignore */ }
+}
+
+function baseUrl() { return $("base-url").value.trim().replace(/\/+$/, ""); }
+function patientId() { return $("patient-id").value.trim(); }
+
+async function api(path, { method = "POST", body = null, auth = true } = {}) {
+  const url = `${baseUrl()}${path}`;
+  const headers = {};
+  if (body !== null) headers["Content-Type"] = "application/json";
+  if (auth) headers["X-API-Key"] = $("api-key").value;
+  const started = performance.now();
+  try {
+    const response = await fetch(url, {
+      method,
+      headers,
+      body: body === null ? undefined : JSON.stringify(body),
+    });
+    const elapsed = Math.round(performance.now() - started);
+    const text = await response.text();
+    let parsed;
+    try { parsed = text ? JSON.parse(text) : null; } catch (_) { parsed = text; }
+    return { ok: response.ok, status: response.status, body: parsed, ms: elapsed, url };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 0,
+      body: { error: { code: "network_error", message: String(error) } },
+      ms: Math.round(performance.now() - started),
+      url,
+    };
+  }
+}
+
+async function checkHealth() {
+  const result = await api("/health", { method: "GET", auth: false });
+  if (result.ok) {
+    setBadge("health-badge", "ok", `200 OK · ${result.ms} ms`);
+    toast(`Service is healthy (${result.ms} ms).`, "ok");
+  } else {
+    const label = result.status ? `${result.status} ${result.body?.error?.code || ""}`.trim() : "unreachable";
+    setBadge("health-badge", "err", label);
+    toast(`Health check failed: ${label}`, "err");
+  }
+}
+
+/* ------------------------------------------------------------------- tabs */
+document.querySelectorAll(".tab").forEach((tab) => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t === tab));
+    document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
+    $(`panel-${tab.dataset.tab}`).classList.add("active");
+  });
+});
+
+/* ----------------------------------------------------------------- INGEST */
+const ingestState = { mode: "ocr" };
+
+function isoNow() { return new Date().toISOString(); }
+
+function newDocumentId() {
+  const stamp = new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
+  return `doc_${stamp}`;
+}
+
+function setIngestMode(mode) {
+  ingestState.mode = mode;
+  document.querySelectorAll("#ingest-mode button").forEach((b) => {
+    b.classList.toggle("active", b.dataset.mode === mode);
+  });
+  $("ocr-card").style.display = mode === "ocr" ? "" : "none";
+  $("session-card").style.display = mode === "session" ? "" : "none";
+  $("mode-hint").textContent = mode === "ocr"
+    ? "ocr_output is sent; session_report_data is null."
+    : "session_report_data is sent; ocr_output is null and user_selected_type is locked to session_report.";
+  if (mode === "session") {
+    $("selected-type").value = "session_report";
+    $("selected-type").disabled = true;
+  } else {
+    $("selected-type").disabled = false;
+    if ($("selected-type").value === "session_report") $("selected-type").value = "lab_result";
+  }
+  refreshIngestPayload();
+}
+
+function computeLines() {
+  if ($("manual-lines").checked) {
+    return $("lines-text").value.split("\n");
+  }
+  return $("raw-text").value.split("\n");
+}
+
+function nullIfEmpty(value) { return value ? value : null; }
+
+function buildIngestPayload() {
+  const payload = {
+    patient_id: patientId(),
+    document_id: $("doc-id").value.trim(),
+    uploaded_at: $("uploaded-at").value.trim(),
+    user_selected_type: $("selected-type").value,
+    user_selected_date: nullIfEmpty($("selected-date").value),
+    ocr_output: null,
+    session_report_data: null,
+  };
+  if (ingestState.mode === "ocr") {
+    payload.ocr_output = {
+      raw_text: $("raw-text").value,
+      lines: computeLines(),
+      detected_doc_type: nullIfEmpty($("detected-type").value),
+      extracted_date: nullIfEmpty($("extracted-date").value),
+    };
+  } else {
+    payload.session_report_data = {
+      chief_complaint: nullIfEmpty($("chief-complaint").value),
+      history_of_present_illness: nullIfEmpty($("hpi").value),
+      assessment_and_diagnosis: nullIfEmpty($("assessment").value),
+      treatment_plan: nullIfEmpty($("treatment-plan").value),
+      consultation_date: nullIfEmpty($("consultation-date").value),
+      approved_at: nullIfEmpty($("approved-at").value.trim()),
+    };
+  }
+  return payload;
+}
+
+function refreshIngestPayload() {
+  const lines = computeLines();
+  $("lines-count").textContent = `lines: ${lines.length}`;
+  showJson("ingest-payload", buildIngestPayload());
+}
+
+async function sendIngest() {
+  const payload = buildIngestPayload();
+  setBadge("ingest-status", "neutral", "sending…");
+  $("send-ingest").disabled = true;
+  const result = await api("/rag/ingest", { body: payload });
+  $("send-ingest").disabled = false;
+  showJson("ingest-response", result.body);
+  if (result.ok) {
+    setBadge("ingest-status", "ok", `${result.status} accepted · ${result.ms} ms`);
+    toast(`Accepted: ${result.body?.document_id || payload.document_id}`, "ok");
+  } else {
+    const code = result.body?.error?.code || "error";
+    setBadge("ingest-status", "err", `${result.status} ${code}`);
+    toast(`Ingest failed: ${result.status} ${code}`, "err");
+  }
+}
+
+function fillSampleArabicLab() {
+  setIngestMode("ocr");
+  $("doc-id").value = newDocumentId();
+  $("uploaded-at").value = isoNow();
+  $("selected-type").value = "lab_result";
+  $("selected-date").value = "";
+  $("detected-type").value = "lab_result";
+  $("extracted-date").value = "2026-10-15";
+  $("manual-lines").checked = false;
+  $("manual-lines-wrap").style.display = "none";
+  $("raw-text").value = [
+    "مختبر البرج",
+    "التاريخ: 2026-10-15",
+    "وظائف الكلى:",
+    "كرياتينين: 1.8 mg/dL (0.6 - 1.2)",
+    "يوريا: 65 mg/dL (15 - 45)",
+  ].join("\n");
+  refreshIngestPayload();
+  toast("Arabic lab sample loaded.", "ok");
+}
+
+function fillSamplePrescription() {
+  setIngestMode("ocr");
+  $("doc-id").value = newDocumentId();
+  $("uploaded-at").value = isoNow();
+  $("selected-type").value = "prescription";
+  $("selected-date").value = "";
+  $("detected-type").value = "";
+  $("extracted-date").value = "";
+  $("manual-lines").checked = false;
+  $("manual-lines-wrap").style.display = "none";
+  $("raw-text").value = [
+    "عيادة د. حسن",
+    "التاريخ: 2026-11-01",
+    "أملوديبين 5 mg مرة يوميًا",
+    "ميتفورمين 500 mg مرتين يوميًا",
+  ].join("\n");
+  refreshIngestPayload();
+  toast("Prescription sample loaded.", "ok");
+}
+
+/* -------------------------------------------------------------------- ASK */
+const chatState = { history: [], exchanges: [] };
+
+function renderSources(sources) {
+  if (!sources || !sources.length) return null;
+  const wrap = h("div", { class: "sources" });
+  for (const source of sources) {
+    wrap.append(
+      h("div", { class: "source" },
+        h("div", { class: "source-head" },
+          h("span", { class: "source-id", text: source.document_id || "(no id)" }),
+          h("span", { class: "badge neutral", text: source.doc_type || "?" }),
+          h("span", { class: "hint", text: source.doc_date || "" }),
+        ),
+        h("div", { class: "source-snippet", text: source.reference_snippet || "" }),
+      ),
+    );
+  }
+  return wrap;
+}
+
+function renderChat() {
+  const chat = $("chat");
+  chat.replaceChildren();
+  for (const exchange of chatState.exchanges) {
+    chat.append(
+      h("div", { class: "msg user" },
+        h("div", { class: "bubble", dir: "auto", text: exchange.question }),
+        h("div", { class: "msg-meta", text: "doctor_query" }),
+      ),
+    );
+    const assistant = h("div", { class: "msg assistant" });
+    if (exchange.pending) {
+      assistant.append(h("div", { class: "bubble", text: "…" }));
+    } else if (exchange.error) {
+      assistant.append(h("div", { class: "bubble", text: exchange.error }));
+    } else {
+      assistant.append(h("div", { class: "bubble", dir: "auto", text: exchange.answer || "" }));
+      const sources = renderSources(exchange.sources);
+      if (sources) assistant.append(sources);
+      assistant.append(
+        h("div", { class: "msg-meta", text: `${exchange.meta}` }),
+      );
+    }
+    if (exchange.request !== undefined) {
+      assistant.append(
+        h("details", { class: "raw" },
+          h("summary", { text: "Raw Request / Response JSON" }),
+          h("div", null,
+            h("pre", { class: "json", id: `req-${exchange.id}` }),
+            h("pre", { class: "json", id: `res-${exchange.id}`, style: "margin-top:10px" }),
+          ),
+        ),
+      );
+    }
+    chat.append(assistant);
+  }
+  $("chat-empty").style.display = chatState.exchanges.length ? "none" : "";
+  $("history-count").textContent = `· ${chatState.history.length} turn(s) kept · last 5 sent`;
+  for (const exchange of chatState.exchanges) {
+    if (exchange.request !== undefined) {
+      showJson(`req-${exchange.id}`, exchange.request);
+      showJson(`res-${exchange.id}`, exchange.response);
+    }
+  }
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function buildAskPayload(question) {
+  const filters = {};
+  if ($("ask-doc-type").value) filters.doc_type = $("ask-doc-type").value;
+  if ($("ask-date-from").value) filters.date_from = $("ask-date-from").value;
+  return {
+    patient_id: patientId(),
+    doctor_query: question,
+    chat_history: chatState.history.slice(-5),
+    optional_filters: filters,
+  };
+}
+
+async function sendAsk() {
+  const question = $("doctor-query").value.trim();
+  if (!question) { toast("Type a question first.", "err"); return; }
+
+  const payload = buildAskPayload(question);
+  const exchange = {
+    id: `x${Date.now()}`,
+    question,
+    pending: true,
+    request: payload,
+    response: undefined,
+  };
+  chatState.exchanges.push(exchange);
+  $("doctor-query").value = "";
+  renderChat();
+
+  setBadge("ask-status", "neutral", "asking…");
+  $("send-ask").disabled = true;
+  const result = await api("/rag/ask", { body: payload });
+  $("send-ask").disabled = false;
+
+  exchange.pending = false;
+  exchange.response = result.body;
+  if (result.ok) {
+    exchange.answer = result.body?.answer || "";
+    exchange.sources = result.body?.sources || [];
+    exchange.meta = `${result.status} OK · ${result.ms} ms · ${exchange.sources.length} source(s)`;
+    setBadge("ask-status", "ok", `${result.status} OK · ${result.ms} ms`);
+    chatState.history.push({ role: "user", content: question });
+    chatState.history.push({ role: "assistant", content: exchange.answer });
+  } else {
+    const code = result.body?.error?.code || "error";
+    exchange.error = `Request failed: ${result.status} ${code} — ${result.body?.error?.message || ""}`;
+    exchange.meta = `${result.status} ${code}`;
+    setBadge("ask-status", "err", `${result.status} ${code}`);
+    toast(`Ask failed: ${result.status} ${code}`, "err");
+  }
+  renderChat();
+}
+
+function clearChat() {
+  chatState.history = [];
+  chatState.exchanges = [];
+  renderChat();
+  setBadge("ask-status", "neutral", "idle");
+  toast("Chat cleared.", "ok");
+}
+
+/* ---------------------------------------------------------------- SUMMARY */
+function buildSummaryPayload() {
+  const filters = {};
+  if ($("summary-doc-type").value) filters.doc_type = $("summary-doc-type").value;
+  if ($("summary-date-from").value) filters.date_from = $("summary-date-from").value;
+  const maxDocuments = parseInt($("summary-max-docs").value, 10);
+  const payload = {
+    patient_id: patientId(),
+    language: $("summary-language").value,
+    optional_filters: filters,
+  };
+  if (Number.isFinite(maxDocuments)) payload.max_documents = maxDocuments;
+  return payload;
+}
+
+const SECTION_ORDER = ["medications", "labs", "reports", "visits"];
+
+function renderSummary(result) {
+  const host = $("summary-result");
+  host.replaceChildren();
+
+  if (!result.ok) {
+    const code = result.body?.error?.code || "error";
+    host.append(
+      h("div", { class: "card" },
+        h("div", { class: "row" },
+          h("span", { class: "badge err", text: `${result.status} ${code}` }),
+          h("span", { class: "hint", text: result.body?.error?.message || "" }),
+        ),
+      ),
+    );
+    return;
+  }
+
+  const body = result.body || {};
+  const kind = body.status === "ok" ? "ok" : (body.status === "no_records" ? "neutral" : "warn");
+  host.append(
+    h("div", { class: "row", style: "margin-bottom:12px" },
+      h("span", { class: `badge ${kind}`, text: body.status || "?" }),
+      h("span", { class: "hint", text: body.message || "" }),
+      h("span", { class: "spacer" }),
+      h("span", { class: "hint", text: `${result.ms} ms` }),
+    ),
+  );
+
+  const sections = Array.isArray(body.sections) ? body.sections : [];
+  if (!sections.length) {
+    host.append(h("div", { class: "empty", text: "No sections returned." }));
+  } else {
+    const sorted = [...sections].sort(
+      (a, b) => SECTION_ORDER.indexOf(a.key) - SECTION_ORDER.indexOf(b.key),
+    );
+    for (const section of sorted) {
+      const card = h("div", { class: "section-card" },
+        h("h3", { text: section.title || section.key }),
+        h("div", { class: "section-body", dir: "auto", text: section.content || "" }),
+      );
+      const sources = renderSources(section.sources);
+      if (sources) card.append(sources);
+      host.append(card);
+    }
+  }
+
+  if (Array.isArray(body.sources) && body.sources.length) {
+    host.append(h("div", { class: "hint", style: "margin-top:10px", text: `All cited documents: ${body.sources.length}` }));
+  }
+}
+
+async function sendSummary() {
+  const payload = buildSummaryPayload();
+  showJson("summary-request", payload);
+  setBadge("summary-status", "neutral", "generating…");
+  $("send-summary").disabled = true;
+  const result = await api("/rag/patient-summary", { body: payload });
+  $("send-summary").disabled = false;
+  showJson("summary-response", result.body);
+  renderSummary(result);
+  if (result.ok) {
+    const status = result.body?.status || "?";
+    setBadge("summary-status", status === "ok" ? "ok" : (status === "no_records" ? "neutral" : "warn"),
+      `${status} · ${result.ms} ms`);
+  } else {
+    const code = result.body?.error?.code || "error";
+    setBadge("summary-status", "err", `${result.status} ${code}`);
+    toast(`Summary failed: ${result.status} ${code}`, "err");
+  }
+}
+
+/* ------------------------------------------------------------------- wiring */
+loadSettings();
+$("doc-id").value = newDocumentId();
+$("uploaded-at").value = isoNow();
+$("approved-at").value = isoNow();
+refreshIngestPayload();
+renderChat();
+
+$("base-url").addEventListener("input", saveSettings);
+$("api-key").addEventListener("input", saveSettings);
+$("patient-id").addEventListener("input", saveSettings);
+$("toggle-key").addEventListener("click", () => {
+  const input = $("api-key");
+  const hidden = input.type === "password";
+  input.type = hidden ? "text" : "password";
+  $("toggle-key").textContent = hidden ? "hide" : "show";
+});
+$("check-health").addEventListener("click", checkHealth);
+
+document.querySelectorAll("#ingest-mode button").forEach((button) => {
+  button.addEventListener("click", () => setIngestMode(button.dataset.mode));
+});
+$("selected-type").addEventListener("change", () => {
+  if ($("selected-type").value === "session_report") setIngestMode("session");
+});
+$("gen-doc-id").addEventListener("click", () => {
+  $("doc-id").value = newDocumentId();
+  refreshIngestPayload();
+});
+["raw-text", "selected-date", "detected-type", "extracted-date", "doc-id", "uploaded-at",
+ "selected-type", "chief-complaint", "hpi", "assessment", "treatment-plan",
+ "consultation-date", "approved-at", "lines-text", "manual-lines", "patient-id"].forEach((id) => {
+  const node = $(id);
+  node.addEventListener("input", refreshIngestPayload);
+  node.addEventListener("change", refreshIngestPayload);
+});
+$("manual-lines").addEventListener("change", () => {
+  const manual = $("manual-lines").checked;
+  $("manual-lines-wrap").style.display = manual ? "" : "none";
+  if (manual && !$("lines-text").value) $("lines-text").value = $("raw-text").value;
+  refreshIngestPayload();
+});
+$("fill-ar-lab").addEventListener("click", fillSampleArabicLab);
+$("fill-rx").addEventListener("click", fillSamplePrescription);
+$("send-ingest").addEventListener("click", sendIngest);
+
+$("send-ask").addEventListener("click", sendAsk);
+$("clear-chat").addEventListener("click", clearChat);
+$("doctor-query").addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    sendAsk();
+  }
+});
+
+$("send-summary").addEventListener("click", sendSummary);
+</script>
+</body>
+</html>

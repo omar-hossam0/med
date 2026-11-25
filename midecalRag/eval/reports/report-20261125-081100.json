@@ -1,0 +1,134 @@
+{
+  "meta": {
+    "mode": "offline-scripted",
+    "git_commit": "no-git",
+    "dense_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    "sparse_model": "Qdrant/bm25",
+    "wide_k": 40,
+    "final_parents": 5,
+    "recency_weight": 0.1,
+    "recency_decay_days": 180,
+    "relevance_floor": 0.0,
+    "expansion_enabled": false
+  },
+  "metrics": {
+    "cases": 35,
+    "recall_at_5": 1.0,
+    "precision": 0.369,
+    "mrr": 0.9241,
+    "newest_hit_rate": 1.0,
+    "dose_top1": 0.5,
+    "not_found_correctness": 0.4,
+    "mode_accuracy": 1.0,
+    "isolation_leaks": 1,
+    "citation_accuracy": 0.9259,
+    "grounding_pass_rate": 0.8438,
+    "summary_ok_rate": 1.0,
+    "forbidden_content_hits": 0,
+    "latency_p50_ms": 783.28,
+    "latency_p95_ms": 2287.13
+  },
+  "calibration": {
+    "chosen_floor": null,
+    "rationale": "No floor preserved recall while improving precision or not-found correctness; RELEVANCE_FLOOR stays 0.0 (gate off).",
+    "points": [
+      {
+        "floor": 0.0,
+        "recall_at_5": 1.0,
+        "precision": 0.369,
+        "not_found_correctness": 0.4,
+        "expected_documents_dropped": 0
+      },
+      {
+        "floor": 0.2,
+        "recall_at_5": 0.9355,
+        "precision": 0.3537,
+        "not_found_correctness": 0.4,
+        "expected_documents_dropped": 2
+      },
+      {
+        "floor": 0.3,
+        "recall_at_5": 0.9032,
+        "precision": 0.359,
+        "not_found_correctness": 0.4,
+        "expected_documents_dropped": 3
+      },
+      {
+        "floor": 0.35,
+        "recall_at_5": 0.9032,
+        "precision": 0.359,
+        "not_found_correctness": 0.4,
+        "expected_documents_dropped": 3
+      },
+      {
+        "floor": 0.4,
+        "recall_at_5": 0.9032,
+        "precision": 0.3889,
+        "not_found_correctness": 0.6,
+        "expected_documents_dropped": 3
+      },
+      {
+        "floor": 0.45,
+        "recall_at_5": 0.8065,
+        "precision": 0.4167,
+        "not_found_correctness": 0.6,
+        "expected_documents_dropped": 6
+      },
+      {
+        "floor": 0.5,
+        "recall_at_5": 0.6774,
+        "precision": 0.4468,
+        "not_found_correctness": 1.0,
+        "expected_documents_dropped": 10
+      },
+      {
+        "floor": 0.55,
+        "recall_at_5": 0.6774,
+        "precision": 0.4468,
+        "not_found_correctness": 1.0,
+        "expected_documents_dropped": 10
+      },
+      {
+        "floor": 0.6,
+        "recall_at_5": 0.5161,
+        "precision": 0.4571,
+        "not_found_correctness": 1.0,
+        "expected_documents_dropped": 15
+      },
+      {
+        "floor": 0.65,
+        "recall_at_5": 0.4839,
+        "precision": 0.4545,
+        "not_found_correctness": 1.0,
+        "expected_documents_dropped": 16
+      },
+      {
+        "floor": 0.7,
+        "recall_at_5": 0.3871,
+        "precision": 0.4286,
+        "not_found_correctness": 1.0,
+        "expected_documents_dropped": 19
+      }
+    ]
+  },
+  "distribution": {
+    "relevant": {
+      "count": 31,
+      "min": 0.1474,
+      "p50": 0.6188,
+      "max": 0.8916
+    },
+    "irrelevant": {
+      "count": 42,
+      "min": 0.2452,
+      "p50": 0.5702,
+      "max": 0.8833
+    }
+  },
+  "failures": [
+    "renal_exact_dose_5mg: ISOLATION LEAK (1 document(s))",
+    "renal_not_found_hba1c_en: expected no candidates, got 3",
+    "renal_not_found_hba1c_ar: expected no candidates, got 3",
+    "cardiac_not_found_lab_en: expected no candidates, got 5"
+  ]
+}
